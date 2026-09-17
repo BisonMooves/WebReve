@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: 'Big Shoulders Display', sans-serif;
+  --font-mono: 'Space Mono', monospace;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+
+  /* Warm Minimal Editorial Palette */
+  --color-cream: #F0EBE1;
+  --color-black: #1A1512;
+  --color-terracotta: #C1512F;
+  --color-[#F0EBE1]: #F0EBE1;
+  --color-[#1A1512]: #1A1512;
+  --color-[#C1512F]: #C1512F;
+
+  /* Hairline Borders */
+  --color-hairline: rgba(26, 21, 18, 0.15);
+}
+
+/* Base Resets & Typography Binding */
+@layer base {
+  body {
+    background-color: #F0EBE1;
+    color: #1A1512;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+  }
+  
+  h1, h2, h3, h4, .font-display {
+    font-family: 'Big Shoulders Display', sans-serif;
+    text-transform: uppercase;
+    line-height: 0.92;
+    letter-spacing: -0.01em;
+  }
+
+  code, kbd, samp, .font-mono {
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+}
+
+/* Custom Editorial Utility Classes */
+.border-hairline {
+  border-color: rgba(26, 21, 18, 0.18);
+}
+
+.divide-hairline > * + * {
+  border-color: rgba(26, 21, 18, 0.18);
+}
