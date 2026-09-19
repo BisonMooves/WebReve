@@ -2,13 +2,33 @@ import React, { useState, useRef } from 'react';
 import { UploadCloud, AlertCircle, Loader2, X, RefreshCw, Crop, Sliders } from 'lucide-react';
 import ImageEditorModal from './ImageEditorModal';
 
-export default function ImageUploader({ value, onChange, label = "PROJECT COVER IMAGE (HIGH QUALITY)" }) {
+export default function ImageUploader({
+  value,
+  onChange,
+  currentImage,
+  onImageUploaded,
+  label = "PROJECT COVER IMAGE (HIGH QUALITY)"
+}) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState(null);
   const [uploadMeta, setUploadMeta] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const fileInputRef = useRef(null);
+
+  const activeValue = value || currentImage || '';
+
+  const triggerChange = (newUrl, meta = null) => {
+    if (typeof onChange === 'function') {
+      onChange(newUrl);
+    }
+    if (typeof onImageUploaded === 'function') {
+      onImageUploaded(newUrl);
+    }
+    if (meta) {
+      setUploadMeta(meta);
+    }
+  };
 
   const handleFileUpload = async (file) => {
     if (!file) return;
@@ -31,35 +51,33 @@ export default function ImageUploader({ value, onChange, label = "PROJECT COVER 
         body: formData
       });
 
-      if (!response.ok) {
-        throw new Error(`Upload failed with HTTP ${response.status}`);
+      const contentType = response.headers.get('content-type') || '';
+      if (response.ok && contentType.includes('application/json')) {
+        const data = await response.json();
+        if (data.url) {
+          triggerChange(data.url, {
+            filename: data.filename || file.name,
+            size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+            storage: data.storage === 'mongodb_gridfs' ? 'MongoDB GridFS (Lossless)' : 'Direct Stream',
+            type: file.type
+          });
+          return;
+        }
       }
-
-      const data = await response.json();
-
-      if (data.url) {
-        onChange(data.url);
-        setUploadMeta({
-          filename: data.filename || file.name,
-          size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-          storage: data.storage === 'mongodb_gridfs' ? 'MongoDB GridFS (Lossless)' : 'Direct Stream',
-          type: file.type
-        });
-      } else {
-        throw new Error(data.error || 'Failed to upload image');
-      }
+      throw new Error(`Upload endpoint returned non-JSON or status ${response.status}`);
     } catch (err) {
-      console.warn("Upload fallback error:", err.message);
-      // Client-side base64 fallback so the user is never blocked
+      console.warn("Using high-res base64 local fallback:", err.message);
+      // Client-side high-res base64 fallback
       const reader = new FileReader();
       reader.onload = (e) => {
-        onChange(e.target.result);
-        setUploadMeta({
-          filename: file.name,
-          size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-          storage: 'Local High-Res Buffer',
-          type: file.type
-        });
+        if (e.target && e.target.result) {
+          triggerChange(e.target.result, {
+            filename: file.name,
+            size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+            storage: 'Local High-Res Asset',
+            type: file.type
+          });
+        }
       };
       reader.readAsDataURL(file);
     } finally {
@@ -104,11 +122,11 @@ export default function ImageUploader({ value, onChange, label = "PROJECT COVER 
       />
 
       {/* Image Preview or Upload Dropzone */}
-      {value ? (
+      {activeValue ? (
         <div className="border border-[#1A1512]/20 bg-[#F0EBE1] p-3 space-y-3">
           <div className="relative aspect-[16/9] w-full bg-[#1A1512]/5 overflow-hidden border border-[#1A1512]/15 group">
             <img
-              src={value}
+              src={activeValue}
               alt="Uploaded high-quality preview"
               className="w-full h-full object-cover"
             />
@@ -131,7 +149,7 @@ export default function ImageUploader({ value, onChange, label = "PROJECT COVER 
               </button>
               <button
                 type="button"
-                onClick={() => onChange('')}
+                onClick={() => triggerChange('')}
                 className="px-3 py-2 bg-white/20 text-white hover:bg-[#C1512F] font-bold text-[10px] tracking-widest uppercase transition-colors flex items-center gap-1.5 cursor-pointer shadow-lg"
               >
                 <X className="w-3.5 h-3.5" />
@@ -154,7 +172,7 @@ export default function ImageUploader({ value, onChange, label = "PROJECT COVER 
                 onClick={() => setIsEditorOpen(true)}
                 className="text-[#C1512F] hover:underline font-bold flex items-center gap-1 cursor-pointer"
               >
-                <Crop className="w-3 h-3" />
+                <Crop className="w-3.5 h-3.5" />
                 <span>SCALE & FILTERS</span>
               </button>
               <button
@@ -218,10 +236,10 @@ export default function ImageUploader({ value, onChange, label = "PROJECT COVER 
       )}
 
       {/* Interactive Image Editor Studio Modal */}
-      {isEditorOpen && value && (
+      {isEditorOpen && activeValue && (
         <ImageEditorModal
-          imageUrl={value}
-          onSave={(newUrl) => onChange(newUrl)}
+          imageUrl={activeValue}
+          onSave={(newUrl) => triggerChange(newUrl)}
           onClose={() => setIsEditorOpen(false)}
         />
       )}
