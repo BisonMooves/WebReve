@@ -19,6 +19,7 @@ import {
   Contrast,
   Palette
 } from 'lucide-react';
+import { apiUrl } from '../config/api';
 
 const PRESETS = [
   { name: 'NATURAL', brightness: 100, contrast: 100, saturation: 100, sepia: 0 },
@@ -187,7 +188,7 @@ export default function ImageEditorModal({ imageUrl, onSave, onClose }) {
             const formData = new FormData();
             formData.append('image', blob, `edited-${Date.now()}.webp`);
 
-            const res = await fetch('/api/upload', {
+            const res = await fetch(apiUrl('/api/upload'), {
               method: 'POST',
               body: formData
             });

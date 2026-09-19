@@ -1,10 +1,14 @@
 services:
+  # ----------------------------------------------------------------------------
+  # 1. BACKEND API SERVICE (Node / Express + MongoDB Atlas)
+  # ----------------------------------------------------------------------------
   - type: web
-    name: webreve
+    name: webreve-server
     runtime: node
     plan: free
-    buildCommand: npm run build
-    startCommand: node server.js
+    rootDir: server
+    buildCommand: npm install
+    startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
@@ -14,3 +18,24 @@ services:
         sync: false
       - key: RESEND_API_KEY
         sync: false
+
+  # ----------------------------------------------------------------------------
+  # 2. FRONTEND CLIENT (Vite React Static Site)
+  # ----------------------------------------------------------------------------
+  - type: web
+    name: webreve-client
+    runtime: static
+    plan: free
+    rootDir: client
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: webreve-server
+          property: host

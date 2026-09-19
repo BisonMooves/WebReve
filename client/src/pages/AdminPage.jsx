@@ -4,6 +4,7 @@ import { useAdminData } from '../context/AdminContext';
 import { useAuth } from '../context/AuthContext';
 import AdminAuthGate from '../components/AdminAuthGate';
 import ImageUploader from '../components/ImageUploader';
+import { apiUrl } from '../config/api';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -410,7 +411,7 @@ export default function AdminPage() {
       try {
         const formData = new FormData();
         formData.append('image', file);
-        const response = await fetch('/api/upload', {
+        const response = await fetch(apiUrl('/api/upload'), {
           method: 'POST',
           body: formData
         });
@@ -1533,83 +1534,106 @@ export default function AdminPage() {
               </div>
 
               {/* Projects Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-                {filteredProjects.map((project, index) => (
-                  <div
-                    key={project.id}
-                    className="border border-[#1A1512]/15 bg-[#F0EBE1] flex flex-col justify-between"
-                  >
-                    <div className="relative aspect-[16/9] overflow-hidden bg-[#1A1512]/5 border-b border-[#1A1512]/15">
-                      <img
-                        src={project.image}
-                        alt={project.title}
-                        className="w-full h-full object-cover"
-                      />
-                      {project.result && project.result.trim() && (
-                        <div className="absolute top-3 left-3">
-                          <span className="px-2.5 py-1 font-mono text-[10px] font-bold tracking-widest uppercase bg-[#1A1512] text-white">
-                            {project.result}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
-                      <div>
-                        <div className="flex items-baseline justify-between gap-2">
-                          <h3 className="text-xl sm:text-2xl font-extrabold font-display uppercase tracking-tight text-[#1A1512]">
-                            0{index + 1} / {project.title}
-                          </h3>
-                          <span className="font-mono text-[10px] uppercase font-bold text-[#1A1512]/60 border border-[#1A1512]/20 px-2 py-0.5 shrink-0">
-                            {project.category}
-                          </span>
-                        </div>
-                        <p className="text-xs text-[#1A1512]/70 font-mono mt-1">
-                          Client: <span className="font-bold text-[#1A1512]">{project.client}</span>
-                        </p>
-                        <p className="text-xs text-[#1A1512]/80 mt-2 font-sans line-clamp-2">
-                          {project.tagline}
-                        </p>
-                      </div>
-
-                      <div className="pt-4 border-t border-[#1A1512]/15 flex flex-wrap items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={() => openProjectModal(project)}
-                            className="px-3 py-1.5 border border-[#1A1512] bg-[#F0EBE1] hover:bg-[#1A1512] hover:text-white font-mono text-xs font-bold uppercase transition-colors cursor-pointer"
-                          >
-                            EDIT CASE STUDY
-                          </button>
-                          {project.liveUrl && (
-                            <a
-                              href={project.liveUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="px-2.5 py-1.5 border border-[#1A1512]/30 hover:border-[#1A1512] text-[#1A1512] hover:text-[#C1512F] font-mono text-[10px] font-bold uppercase transition-colors flex items-center gap-1 cursor-pointer bg-[#E8E2D7]/50"
-                              title="Visit live site"
-                            >
-                              <span>LIVE SITE</span>
-                              <ExternalLink className="w-3 h-3" />
-                            </a>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => {
-                            if (window.confirm(`Delete "${project.title}"?`)) {
-                              deleteProject(project.id);
-                              showToast('Project deleted.');
-                            }
-                          }}
-                          className="p-1.5 border border-[#1A1512]/20 hover:bg-[#C1512F] hover:text-white hover:border-[#C1512F] transition-colors cursor-pointer"
-                          title="Delete Project"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
+              {filteredProjects.length === 0 ? (
+                <div className="border border-[#1A1512]/15 bg-[#F0EBE1] p-10 sm:p-14 text-center space-y-4">
+                  <div className="font-mono text-xs text-[#1A1512]/50 uppercase tracking-widest font-bold">
+                    [ NO PROJECTS REGISTERED ]
                   </div>
-                ))}
-              </div>
+                  <h3 className="font-display text-2xl sm:text-3xl font-extrabold uppercase text-[#1A1512]">
+                    PORTFOLIO DIRECTORY IS EMPTY
+                  </h3>
+                  <p className="font-mono text-xs text-[#1A1512]/70 max-w-md mx-auto leading-relaxed">
+                    All default projects have been removed. Click below to add your first real project with custom images, mockups, and live URLs.
+                  </p>
+                  <div>
+                    <button
+                      onClick={() => openProjectModal()}
+                      className="px-5 py-2.5 bg-[#1A1512] text-white hover:bg-[#C1512F] font-mono text-xs font-bold tracking-widest inline-flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>CREATE FIRST PROJECT</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+                  {filteredProjects.map((project, index) => (
+                    <div
+                      key={project.id}
+                      className="border border-[#1A1512]/15 bg-[#F0EBE1] flex flex-col justify-between"
+                    >
+                      <div className="relative aspect-[16/9] overflow-hidden bg-[#1A1512]/5 border-b border-[#1A1512]/15">
+                        <img
+                          src={project.image}
+                          alt={project.title}
+                          className="w-full h-full object-cover"
+                        />
+                        {project.result && project.result.trim() && (
+                          <div className="absolute top-3 left-3">
+                            <span className="px-2.5 py-1 font-mono text-[10px] font-bold tracking-widest uppercase bg-[#1A1512] text-white">
+                              {project.result}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-4 sm:p-5 space-y-3 flex-1 flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-baseline justify-between gap-2">
+                            <h3 className="text-xl sm:text-2xl font-extrabold font-display uppercase tracking-tight text-[#1A1512]">
+                              0{index + 1} / {project.title}
+                            </h3>
+                            <span className="font-mono text-[10px] uppercase font-bold text-[#1A1512]/60 border border-[#1A1512]/20 px-2 py-0.5 shrink-0">
+                              {project.category}
+                            </span>
+                          </div>
+                          <p className="text-xs text-[#1A1512]/70 font-mono mt-1">
+                            Client: <span className="font-bold text-[#1A1512]">{project.client}</span>
+                          </p>
+                          <p className="text-xs text-[#1A1512]/60 font-sans mt-2 line-clamp-2">
+                            {project.tagline}
+                          </p>
+                        </div>
+
+                        <div className="pt-3 border-t border-[#1A1512]/10 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => openProjectModal(project)}
+                              className="px-3 py-1.5 border border-[#1A1512] bg-[#F0EBE1] hover:bg-[#1A1512] hover:text-white font-mono text-xs font-bold uppercase transition-colors cursor-pointer"
+                            >
+                              EDIT CASE STUDY
+                            </button>
+                            {project.liveUrl && (
+                              <a
+                                href={project.liveUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-2.5 py-1.5 border border-[#1A1512]/30 hover:border-[#1A1512] text-[#1A1512] hover:text-[#C1512F] font-mono text-[10px] font-bold uppercase transition-colors flex items-center gap-1 cursor-pointer bg-[#E8E2D7]/50"
+                                title="Visit live site"
+                              >
+                                <span>LIVE SITE</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Delete "${project.title}"?`)) {
+                                deleteProject(project.id);
+                                showToast('Project deleted.');
+                              }
+                            }}
+                            className="p-1.5 border border-[#1A1512]/20 hover:bg-[#C1512F] hover:text-white hover:border-[#C1512F] transition-colors cursor-pointer"
+                            title="Delete Project"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -2325,7 +2349,7 @@ export default function AdminPage() {
                                         try {
                                           const formData = new FormData();
                                           formData.append('image', file);
-                                          const res = await fetch('/api/upload', {
+                                          const res = await fetch(apiUrl('/api/upload'), {
                                             method: 'POST',
                                             body: formData
                                           });

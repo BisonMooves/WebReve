@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { UploadCloud, AlertCircle, Loader2, X, RefreshCw, Crop, Sliders } from 'lucide-react';
 import ImageEditorModal from './ImageEditorModal';
+import { apiUrl } from '../config/api';
 
 export default function ImageUploader({
   value,
@@ -46,7 +47,7 @@ export default function ImageUploader({
       const formData = new FormData();
       formData.append('image', file);
 
-      const response = await fetch('/api/upload', {
+      const response = await fetch(apiUrl('/api/upload'), {
         method: 'POST',
         body: formData
       });

@@ -2,29 +2,22 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { projects as defaultProjects } from '../data/projects';
 import { testimonials as defaultTestimonials } from '../data/testimonials';
 import { agencyInfo as defaultAgencyInfo } from '../data/agencyInfo';
+import { apiUrl } from '../config/api';
 
 const AdminContext = createContext();
 
 export function AdminProvider({ children }) {
-  // 1. Projects State
+  // 1. Projects State (Empty by default, managed via Admin and MongoDB Atlas)
   const [projects, setProjects] = useState(() => {
     try {
       const saved = localStorage.getItem('webreve_projects');
       if (saved) {
         const parsed = JSON.parse(saved);
-        return parsed.map((p) => {
-          if (!p.galleryItems || p.galleryItems.length === 0) {
-            const defaultMatch = defaultProjects.find((dp) => dp.id === p.id);
-            if (defaultMatch && defaultMatch.galleryItems) {
-              return { ...p, galleryItems: defaultMatch.galleryItems };
-            }
-          }
-          return p;
-        });
+        if (Array.isArray(parsed)) return parsed;
       }
-      return defaultProjects;
+      return [];
     } catch {
-      return defaultProjects;
+      return [];
     }
   });
 
@@ -122,7 +115,7 @@ export function AdminProvider({ children }) {
   // Fetch Stats from Server
   const fetchStats = useCallback(async () => {
     try {
-      const res = await fetch('/api/admin/stats', {
+      const res = await fetch(apiUrl('/api/admin/stats'), {
         headers: { ...getAuthHeader() }
       });
       if (res.ok) {
@@ -170,7 +163,7 @@ export function AdminProvider({ children }) {
       if (status && status !== 'all') queryParams.set('status', status);
       if (q && q.trim()) queryParams.set('q', q.trim());
 
-      const res = await fetch(`/api/admin/conversations?${queryParams.toString()}`, {
+      const res = await fetch(apiUrl(`/api/admin/conversations?${queryParams.toString()}`), {
         headers: { ...getAuthHeader() }
       });
 
@@ -221,7 +214,7 @@ export function AdminProvider({ children }) {
     });
 
     try {
-      const res = await fetch(`/api/admin/conversations/${id}`, {
+      const res = await fetch(apiUrl(`/api/admin/conversations/${id}`), {
         headers: { ...getAuthHeader() }
       });
 
@@ -242,7 +235,7 @@ export function AdminProvider({ children }) {
   // Send Message (Outbound Email, Internal Note, or Inbound Client Message)
   const sendMessage = async (conversationId, { type, channel, body, subject }) => {
     try {
-      const res = await fetch(`/api/admin/conversations/${conversationId}/messages`, {
+      const res = await fetch(apiUrl(`/api/admin/conversations/${conversationId}/messages`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -281,7 +274,7 @@ export function AdminProvider({ children }) {
   // Update Conversation Status
   const updateConversationStatus = async (conversationId, status) => {
     try {
-      const res = await fetch(`/api/admin/conversations/${conversationId}`, {
+      const res = await fetch(apiUrl(`/api/admin/conversations/${conversationId}`), {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -326,41 +319,19 @@ export function AdminProvider({ children }) {
   // Fetch Projects from Server / Database
   const fetchProjects = useCallback(async () => {
     try {
-      const res = await fetch('/api/projects');
+      const res = await fetch(apiUrl('/api/projects'));
       const contentType = res.headers.get('content-type') || '';
       if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
-        if (data && data.projects && data.projects.length > 0) {
+        if (data && Array.isArray(data.projects)) {
           setProjects(data.projects);
           try {
             localStorage.setItem('webreve_projects', JSON.stringify(data.projects));
           } catch {}
-        } else {
-          // If server projects collection is empty, check if we have local projects to backfill to MongoDB
-          try {
-            const saved = localStorage.getItem('webreve_projects');
-            if (saved) {
-              const localList = JSON.parse(saved);
-              if (Array.isArray(localList) && localList.length > 0) {
-                setProjects(localList);
-                const token = localStorage.getItem('webreve_admin_token') || localStorage.getItem('webreve_token');
-                if (token) {
-                  fetch('/api/admin/projects/sync', {
-                    method: 'POST',
-                    headers: {
-                      'Content-Type': 'application/json',
-                      Authorization: `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ projects: localList })
-                  }).catch(() => {});
-                }
-              }
-            }
-          } catch {}
         }
       }
     } catch (err) {
-      console.warn('Using local projects fallback:', err.message);
+      console.warn('Projects fetch notice:', err.message);
     }
   }, []);
 
@@ -374,7 +345,7 @@ export function AdminProvider({ children }) {
     const listToSync = customList || projects;
     if (!listToSync || listToSync.length === 0) return { success: false, message: 'No projects to sync.' };
     try {
-      const res = await fetch('/api/admin/projects/sync', {
+      const res = await fetch(apiUrl('/api/admin/projects/sync'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -386,6 +357,11 @@ export function AdminProvider({ children }) {
       let data = {};
       if (contentType.includes('application/json')) {
         data = await res.json();
+      } else if (contentType.includes('text/html')) {
+        return {
+          success: false,
+          error: 'Render is running as a Static Site instead of a Web Service. Create a "New Web Service" on Render to run node server.js.'
+        };
       }
       if (res.ok && data.success) {
         fetchProjects();
@@ -430,7 +406,7 @@ export function AdminProvider({ children }) {
     });
 
     try {
-      await fetch('/api/admin/projects', {
+      await fetch(apiUrl('/api/admin/projects'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -455,7 +431,7 @@ export function AdminProvider({ children }) {
     });
 
     try {
-      await fetch(`/api/admin/projects/${id}`, {
+      await fetch(apiUrl(`/api/admin/projects/${id}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -478,7 +454,7 @@ export function AdminProvider({ children }) {
     });
 
     try {
-      await fetch(`/api/admin/projects/${id}`, {
+      await fetch(apiUrl(`/api/admin/projects/${id}`), {
         method: 'DELETE',
         headers: { ...getAuthHeader() }
       });
@@ -511,11 +487,11 @@ export function AdminProvider({ children }) {
 
     // 2. Dispatch to backend API
     try {
-      await fetch(`/api/admin/conversations/${id}`, {
+      await fetch(apiUrl(`/api/admin/conversations/${id}`), {
         method: 'DELETE',
         headers: { ...getAuthHeader() }
       });
-      await fetch(`/api/inquiries/${id}`, {
+      await fetch(apiUrl(`/api/inquiries/${id}`), {
         method: 'DELETE',
         headers: { ...getAuthHeader() }
       }).catch(() => {});
@@ -536,7 +512,7 @@ export function AdminProvider({ children }) {
 
   // Inquiry Submission (Contact Form Integration)
   const addInquiry = async (inquiryData) => {
-    const res = await fetch('/api/inquiries', {
+    const res = await fetch(apiUrl('/api/inquiries'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(inquiryData)
@@ -595,7 +571,7 @@ export function AdminProvider({ children }) {
   };
 
   const resetToDefaults = () => {
-    setProjects(defaultProjects);
+    setProjects([]);
     setTestimonials(defaultTestimonials);
     setAgencyInfo(defaultAgencyInfo);
     setConversations([]);

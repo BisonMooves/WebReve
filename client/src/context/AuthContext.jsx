@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { apiUrl } from '../config/api';
 
 const AuthContext = createContext();
 
@@ -37,7 +38,7 @@ export function AuthProvider({ children }) {
       }
 
       try {
-        const res = await fetch('/api/auth/verify', {
+        const res = await fetch(apiUrl('/api/auth/verify'), {
           headers: {
             Authorization: `Bearer ${savedToken}`
           }
@@ -91,7 +92,7 @@ export function AuthProvider({ children }) {
     }
 
     try {
-      const res = await fetch('/api/auth/check-email', {
+      const res = await fetch(apiUrl('/api/auth/check-email'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: normalized })
@@ -120,7 +121,7 @@ export function AuthProvider({ children }) {
     const normalized = (email || '').trim().toLowerCase();
 
     try {
-      const res = await fetch('/api/auth/set-password', {
+      const res = await fetch(apiUrl('/api/auth/set-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: normalized, password })
@@ -153,7 +154,7 @@ export function AuthProvider({ children }) {
     const normalized = (email || '').trim().toLowerCase();
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const res = await fetch(apiUrl('/api/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: normalized, password })
@@ -181,7 +182,7 @@ export function AuthProvider({ children }) {
     if (!token) return { success: false, error: 'Not authenticated' };
 
     try {
-      const res = await fetch('/api/auth/change-password', {
+      const res = await fetch(apiUrl('/api/auth/change-password'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

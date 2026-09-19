@@ -1,39 +1,18 @@
 {
-  "name": "webreve",
+  "name": "webreve-monorepo",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently -n \"API,VITE\" -c \"cyan,magenta\" \"node server.js\" \"vite\"",
-    "start": "node server.js",
-    "server": "node server.js",
-    "dev:ui": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "bcryptjs": "^3.0.3",
-    "cors": "^2.8.6",
-    "dotenv": "^18.0.1",
-    "express": "^5.2.1",
-    "framer-motion": "^13.4.0",
-    "jsonwebtoken": "^9.0.3",
-    "lucide-react": "^1.46.0",
-    "mongodb": "^6.21.0",
-    "multer": "^2.4.0",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-router-dom": "^7.18.4"
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "start": "npm start --prefix server",
+    "build": "npm run build --prefix client",
+    "build:client": "npm run build --prefix client",
+    "install:all": "npm install && npm install --prefix client && npm install --prefix server"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.3",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
-    "@vitejs/plugin-react": "^6.1.1",
-    "autoprefixer": "^10.6.1",
-    "concurrently": "^9.2.4",
-    "postcss": "^8.5.28",
-    "tailwindcss": "^4.3.3",
-    "vite": "^8.3.0"
+    "concurrently": "^9.2.4"
   }
 }
