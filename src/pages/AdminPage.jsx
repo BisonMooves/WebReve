@@ -110,6 +110,8 @@ export default function AdminPage() {
     addProject,
     updateProject,
     deleteProject,
+    syncProjectsToMongo,
+    fetchProjects,
     updateInquiryStatus,
     deleteInquiry,
     addTestimonial,
@@ -118,6 +120,19 @@ export default function AdminPage() {
     updateAgencyInfo,
     resetToDefaults
   } = useAdminData();
+
+  const [isSyncingProjects, setIsSyncingProjects] = useState(false);
+
+  const handleSyncAllProjects = async () => {
+    setIsSyncingProjects(true);
+    const res = await syncProjectsToMongo();
+    setIsSyncingProjects(false);
+    if (res.success) {
+      showToast(`✅ Synced ${res.count || projects.length} project(s) directly to MongoDB Atlas!`);
+    } else {
+      showToast(`⚠️ Sync failed: ${res.error || 'Server error'}`);
+    }
+  };
 
   const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'projects' | 'inquiries' | 'conversations' | 'testimonials' | 'settings'
   const [searchQuery, setSearchQuery] = useState('');
@@ -1497,6 +1512,16 @@ export default function AdminPage() {
                       className="w-full sm:w-auto pl-9 pr-3 py-2 border border-[#1A1512]/20 font-mono text-xs focus:outline-none focus:border-[#1A1512] bg-[#F0EBE1]"
                     />
                   </div>
+                  <button
+                    type="button"
+                    disabled={isSyncingProjects}
+                    onClick={handleSyncAllProjects}
+                    className="px-3.5 py-2 border border-[#1A1512]/30 hover:border-[#1A1512] bg-[#F0EBE1] hover:bg-[#1A1512] hover:text-white font-mono text-xs font-bold tracking-wider flex items-center gap-1.5 transition-colors cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Push and sync all current portfolio projects directly to MongoDB Atlas database"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isSyncingProjects ? 'animate-spin text-[#C1512F]' : ''}`} />
+                    <span>{isSyncingProjects ? 'SYNCING...' : 'SYNC TO MONGO'}</span>
+                  </button>
                   <button
                     onClick={() => openProjectModal()}
                     className="px-4 py-2 bg-[#1A1512] text-white hover:bg-[#C1512F] font-mono text-xs font-bold tracking-widest flex items-center gap-2 transition-colors cursor-pointer shrink-0"

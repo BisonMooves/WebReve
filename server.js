@@ -1288,6 +1288,7 @@ app.get('/api/projects/:id', async (req, res) => {
 // 3. Create Project (Admin Protected)
 const handleCreateProject = async (req, res) => {
   try {
+    await ensureDbConnected();
     const projectData = req.body;
     const projectId = projectData.id || `proj-${Date.now()}`;
     const nowIso = new Date().toISOString();
@@ -1295,17 +1296,23 @@ const handleCreateProject = async (req, res) => {
     const newProject = {
       ...projectData,
       id: projectId,
-      createdAt: nowIso,
+      createdAt: projectData.createdAt || nowIso,
       updatedAt: nowIso
     };
 
     if (isConnected && db) {
-      await db.collection('projects').insertOne(newProject);
+      await db.collection('projects').updateOne(
+        { id: projectId },
+        { $set: newProject },
+        { upsert: true }
+      );
+      console.log(`✨ Saved project to MongoDB: ${newProject.title} (${projectId})`);
+    } else {
+      console.warn(`⚠️ Cannot save project to MongoDB (isConnected: ${isConnected}, db: ${!!db})`);
     }
     localProjects.set(projectId, newProject);
 
-    console.log(`✨ Created project in MongoDB: ${newProject.title} (${projectId})`);
-    res.json({ success: true, project: newProject });
+    res.json({ success: true, project: newProject, savedToMongo: isConnected && !!db });
   } catch (err) {
     console.error('Create project error:', err);
     res.status(500).json({ error: 'Failed to create project.', details: err.message });
@@ -1314,9 +1321,10 @@ const handleCreateProject = async (req, res) => {
 app.post('/api/admin/projects', authenticateAdmin, handleCreateProject);
 app.post('/api/projects', authenticateAdmin, handleCreateProject);
 
-// 4. Update Project (Admin Protected)
+// 4. Update Project (Admin Protected - with Upsert)
 const handleUpdateProject = async (req, res) => {
   try {
+    await ensureDbConnected();
     const { id } = req.params;
     const updatedFields = req.body;
     const nowIso = new Date().toISOString();
@@ -1324,14 +1332,20 @@ const handleUpdateProject = async (req, res) => {
     if (isConnected && db) {
       await db.collection('projects').updateOne(
         { id },
-        { $set: { ...updatedFields, updatedAt: nowIso } }
+        { 
+          $set: { ...updatedFields, id, updatedAt: nowIso },
+          $setOnInsert: { createdAt: nowIso }
+        },
+        { upsert: true }
       );
+      console.log(`📝 Upserted project in MongoDB: ${id}`);
+    } else {
+      console.warn(`⚠️ Cannot update project in MongoDB (isConnected: ${isConnected}, db: ${!!db})`);
     }
     const current = localProjects.get(id) || {};
-    localProjects.set(id, { ...current, ...updatedFields, updatedAt: nowIso });
+    localProjects.set(id, { ...current, ...updatedFields, id, updatedAt: nowIso });
 
-    console.log(`📝 Updated project in MongoDB: ${id}`);
-    res.json({ success: true, message: 'Project updated successfully.' });
+    res.json({ success: true, message: 'Project updated successfully.', savedToMongo: isConnected && !!db });
   } catch (err) {
     console.error('Update project error:', err);
     res.status(500).json({ error: 'Failed to update project.', details: err.message });
@@ -1340,9 +1354,43 @@ const handleUpdateProject = async (req, res) => {
 app.put('/api/admin/projects/:id', authenticateAdmin, handleUpdateProject);
 app.put('/api/projects/:id', authenticateAdmin, handleUpdateProject);
 
-// 5. Delete Project (Admin Protected)
+// 5. Batch Sync Projects to MongoDB (Admin Protected)
+app.post('/api/admin/projects/sync', authenticateAdmin, async (req, res) => {
+  try {
+    await ensureDbConnected();
+    const { projects: incomingProjects } = req.body;
+    if (!Array.isArray(incomingProjects) || incomingProjects.length === 0) {
+      return res.status(400).json({ error: 'No projects array provided.' });
+    }
+
+    if (isConnected && db) {
+      for (const p of incomingProjects) {
+        if (!p.id) continue;
+        const nowIso = new Date().toISOString();
+        await db.collection('projects').updateOne(
+          { id: p.id },
+          { 
+            $set: { ...p, updatedAt: nowIso },
+            $setOnInsert: { createdAt: p.createdAt || nowIso }
+          },
+          { upsert: true }
+        );
+      }
+      console.log(`🔄 Synced ${incomingProjects.length} projects to MongoDB.`);
+      return res.json({ success: true, count: incomingProjects.length, savedToMongo: true });
+    } else {
+      return res.status(503).json({ error: 'MongoDB is not connected.', savedToMongo: false });
+    }
+  } catch (err) {
+    console.error('Projects sync error:', err);
+    res.status(500).json({ error: 'Failed to sync projects.', details: err.message });
+  }
+});
+
+// 6. Delete Project (Admin Protected)
 const handleDeleteProject = async (req, res) => {
   try {
+    await ensureDbConnected();
     const { id } = req.params;
     if (isConnected && db) {
       await db.collection('projects').deleteOne({ id });

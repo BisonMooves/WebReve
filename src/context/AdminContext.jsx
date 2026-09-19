@@ -328,10 +328,32 @@ export function AdminProvider({ children }) {
       const res = await fetch('/api/projects');
       if (res.ok) {
         const data = await res.json();
-        if (data.projects) {
+        if (data.projects && data.projects.length > 0) {
           setProjects(data.projects);
           try {
             localStorage.setItem('webreve_projects', JSON.stringify(data.projects));
+          } catch {}
+        } else {
+          // If server projects collection is empty, check if we have local projects to backfill to MongoDB
+          try {
+            const saved = localStorage.getItem('webreve_projects');
+            if (saved) {
+              const localList = JSON.parse(saved);
+              if (Array.isArray(localList) && localList.length > 0) {
+                setProjects(localList);
+                const token = localStorage.getItem('webreve_admin_token') || localStorage.getItem('webreve_token');
+                if (token) {
+                  fetch('/api/admin/projects/sync', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      Authorization: `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ projects: localList })
+                  }).catch(() => {});
+                }
+              }
+            }
           } catch {}
         }
       }
@@ -344,6 +366,31 @@ export function AdminProvider({ children }) {
   useEffect(() => {
     fetchProjects();
   }, [fetchProjects]);
+
+  // Batch Sync Projects to MongoDB Atlas
+  const syncProjectsToMongo = async (customList = null) => {
+    const listToSync = customList || projects;
+    if (!listToSync || listToSync.length === 0) return { success: false, message: 'No projects to sync.' };
+    try {
+      const res = await fetch('/api/admin/projects/sync', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify({ projects: listToSync })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        fetchProjects();
+        return { success: true, count: data.count };
+      }
+      return { success: false, error: data.error };
+    } catch (err) {
+      console.warn('Sync projects to MongoDB error:', err);
+      return { success: false, error: err.message };
+    }
+  };
 
   // Project CRUD Actions (MongoDB Connected)
   const addProject = async (projectData) => {
@@ -587,6 +634,7 @@ export function AdminProvider({ children }) {
         addProject,
         updateProject,
         deleteProject,
+        syncProjectsToMongo,
         addInquiry,
         updateInquiryStatus,
         deleteInquiry,
