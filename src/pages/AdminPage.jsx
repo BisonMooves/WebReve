@@ -1876,18 +1876,35 @@ export default function AdminPage() {
                     onChange={(e) => {
                       if (e.target.value === '__custom__') {
                         setIsCustomCategory(true);
+                        if (!customCategoryVal) {
+                          setCustomCategoryVal('');
+                        }
                       } else {
                         setIsCustomCategory(false);
                         setProjectForm({ ...projectForm, category: e.target.value });
                       }
                     }}
-                    className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none"
+                    className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-mono text-xs"
                   >
                     {standardCategories.map((c) => (
                       <option key={c} value={c}>{c.toUpperCase()}</option>
                     ))}
                     <option value="__custom__">+ CUSTOM CATEGORY...</option>
                   </select>
+
+                  {isCustomCategory && (
+                    <input
+                      type="text"
+                      value={customCategoryVal}
+                      onChange={(e) => {
+                        setCustomCategoryVal(e.target.value);
+                        setProjectForm({ ...projectForm, category: e.target.value });
+                      }}
+                      placeholder="Type custom category name..."
+                      className="w-full mt-2 p-2.5 border border-[#C1512F] bg-[#F0EBE1] focus:outline-none font-mono text-xs"
+                      autoFocus
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-1">
