@@ -250,9 +250,22 @@ async function connectDB() {
 
 connectDB();
 
-// Ensure DB is connected in all environments (Vercel Serverless / Render Web Service)
+// Ensure DB is connected and normalize URLs in all environments (Vercel Serverless / Render Web Service)
 app.use(async (req, res, next) => {
-  if (req.path.startsWith('/api')) {
+  // If invoked inside Vercel serverless function, req.url might have /api stripped
+  if (!req.url.startsWith('/api') && (
+    req.url.startsWith('/projects') || 
+    req.url.startsWith('/admin') || 
+    req.url.startsWith('/auth') || 
+    req.url.startsWith('/inquiries') || 
+    req.url.startsWith('/status') || 
+    req.url.startsWith('/upload') || 
+    req.url.startsWith('/images')
+  )) {
+    req.url = '/api' + req.url;
+  }
+
+  if (req.url.startsWith('/api')) {
     if (!isConnected || !db) {
       await ensureDbConnected();
     }
