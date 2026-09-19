@@ -4,23 +4,36 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n \"API,VITE\" -c \"cyan,magenta\" \"node server.js\" \"vite\"",
+    "server": "node server.js",
+    "dev:ui": "vite",
     "build": "vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.1",
+    "express": "^5.2.1",
     "framer-motion": "^13.4.0",
+    "jsonwebtoken": "^9.0.3",
     "lucide-react": "^1.46.0",
+    "mongodb": "^6.21.0",
+    "multer": "^2.4.0",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.4"
   },
   "devDependencies": {
+    "@oxlint/binding-darwin-arm64": "^1.83.0",
+    "@rolldown/binding-darwin-arm64": "^1.2.9",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
     "@vitejs/plugin-react": "^6.1.1",
     "autoprefixer": "^10.6.1",
+    "concurrently": "^9.2.4",
     "oxlint": "^1.81.0",
     "postcss": "^8.5.28",
     "tailwindcss": "^4.3.3",

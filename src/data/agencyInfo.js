@@ -46,8 +46,17 @@ export const agencyInfo = {
     }
   ],
   contact: {
-    email: "hello@webreve.design",
-    location: "Paris • New York • Remote Worldwide",
-    availability: "Accepting Q4 Client Projects"
+    email: "singh.aditya.44618@gmail.com",
+    whatsapp: "+91 9741780612",
+    whatsappLink: "https://wa.me/919741780612",
+    location: "Remote Worldwide",
+    availability: "Accepting Q4 Client Projects",
+    socials: [
+      { name: "WhatsApp", href: "https://wa.me/919741780612" },
+      { name: "LinkedIn", href: "https://www.linkedin.com/in/aditya-singh-0604adi/" },
+      { name: "GitHub", href: "https://github.com/aditya060414" },
+      { name: "Instagram", href: "https://instagram.com/webreve_" },
+      { name: "Twitter / X", href: "https://x.com/AdityaSingh446" }
+    ]
   }
 };

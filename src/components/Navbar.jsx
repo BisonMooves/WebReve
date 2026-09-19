@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Menu, X, ArrowRight } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const navLinks = [
-    { name: 'WORK', href: '#work' },
-    { name: 'SERVICES', href: '#services' },
-    { name: 'PROCESS', href: '#why-us' },
-    { name: 'TESTIMONIALS', href: '#testimonials' },
+    { name: 'WORK', href: '/#work' },
+    { name: 'SERVICES', href: '/#services' },
+    { name: 'PROCESS', href: '/#why-us' },
   ];
 
   return (
@@ -18,12 +18,12 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
           
           {/* Brand Wordmark */}
-          <a href="#" className="flex items-center gap-1 group">
+          <Link to="/" className="flex items-center gap-1 group">
             <span className="font-display font-extrabold text-3xl tracking-tight text-[#1A1512]">
               WEBREVE
             </span>
             <span className="w-2.5 h-2.5 bg-[#C1512F] inline-block mb-1" />
-          </a>
+          </Link>
 
           {/* Center-Right Monospace Nav Links */}
           <nav className="hidden md:flex items-center gap-10">
@@ -41,7 +41,7 @@ export default function Navbar() {
           {/* Far-Right Solid Black Rectangle CTA Button */}
           <div className="hidden md:flex items-center">
             <a
-              href="#contact"
+              href="/#contact"
               className="px-6 py-3 bg-[#1A1512] hover:bg-[#C1512F] text-white text-xs font-mono font-bold tracking-widest uppercase flex items-center gap-2 transition-colors duration-200"
             >
               <span>START A PROJECT</span>
@@ -85,7 +85,7 @@ export default function Navbar() {
 
             <div className="pt-8 border-t border-[#1A1512]/15 space-y-4">
               <a
-                href="#contact"
+                href="/#contact"
                 onClick={() => setMobileMenuOpen(false)}
                 className="w-full py-4 bg-[#1A1512] text-white text-xs font-mono font-bold tracking-widest uppercase flex items-center justify-center gap-2"
               >
