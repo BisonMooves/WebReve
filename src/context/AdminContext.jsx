@@ -174,14 +174,15 @@ export function AdminProvider({ children }) {
         headers: { ...getAuthHeader() }
       });
 
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
-        if (data.conversations) {
+        if (data && data.conversations) {
           setConversations(data.conversations);
         }
       }
     } catch (err) {
-      console.warn('Using local conversations fallback:', err);
+      console.warn('Using local conversations fallback:', err.message || err);
     } finally {
       setIsLoadingConversations(false);
       fetchStats();
@@ -326,9 +327,10 @@ export function AdminProvider({ children }) {
   const fetchProjects = useCallback(async () => {
     try {
       const res = await fetch('/api/projects');
-      if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (res.ok && contentType.includes('application/json')) {
         const data = await res.json();
-        if (data.projects && data.projects.length > 0) {
+        if (data && data.projects && data.projects.length > 0) {
           setProjects(data.projects);
           try {
             localStorage.setItem('webreve_projects', JSON.stringify(data.projects));
@@ -380,12 +382,16 @@ export function AdminProvider({ children }) {
         },
         body: JSON.stringify({ projects: listToSync })
       });
-      const data = await res.json();
+      const contentType = res.headers.get('content-type') || '';
+      let data = {};
+      if (contentType.includes('application/json')) {
+        data = await res.json();
+      }
       if (res.ok && data.success) {
         fetchProjects();
         return { success: true, count: data.count };
       }
-      return { success: false, error: data.error };
+      return { success: false, error: data.error || `Server returned ${res.status}` };
     } catch (err) {
       console.warn('Sync projects to MongoDB error:', err);
       return { success: false, error: err.message };

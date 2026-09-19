@@ -71,7 +71,7 @@ async function migrateAndBackfillConversations() {
   try {
     // 1. In MongoDB
     if (isConnected && db) {
-      // Remove any legacy seeded sample threads (Alexandre Laurent, Sophia Chen, Liam O'Connor)
+      // Remove any legacy seeded sample threads
       await db.collection('conversations').deleteMany({
         id: { $in: ['conv-1', 'conv-2', 'conv-3'] }
       });
@@ -250,29 +250,6 @@ async function connectDB() {
 
 connectDB();
 
-// Ensure DB is connected and normalize URLs in all environments (Vercel Serverless / Render Web Service)
-app.use(async (req, res, next) => {
-  // If invoked inside Vercel serverless function, req.url might have /api stripped
-  if (!req.url.startsWith('/api') && (
-    req.url.startsWith('/projects') || 
-    req.url.startsWith('/admin') || 
-    req.url.startsWith('/auth') || 
-    req.url.startsWith('/inquiries') || 
-    req.url.startsWith('/status') || 
-    req.url.startsWith('/upload') || 
-    req.url.startsWith('/images')
-  )) {
-    req.url = '/api' + req.url;
-  }
-
-  if (req.url.startsWith('/api')) {
-    if (!isConnected || !db) {
-      await ensureDbConnected();
-    }
-  }
-  next();
-});
-
 // -----------------------------------------------------------------------------
 // SERVER-SIDE AUTHENTICATION MIDDLEWARE
 // -----------------------------------------------------------------------------
@@ -349,11 +326,12 @@ async function sendEmailViaResend({ to, subject, text, html, replyTo }) {
 }
 
 // -----------------------------------------------------------------------------
-// AUTHENTICATION ROUTES (Protected for 2 Authorized Emails)
+// API ROUTER (Handles both /api/* and root /* rewrites in serverless)
 // -----------------------------------------------------------------------------
+const apiRouter = express.Router();
 
 // 1. Check Email Authorization
-app.post('/api/auth/check-email', async (req, res) => {
+apiRouter.post('/auth/check-email', async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
 
@@ -393,7 +371,7 @@ app.post('/api/auth/check-email', async (req, res) => {
 });
 
 // 2. First-time Setup: Set Password & Hash in MongoDB
-app.post('/api/auth/set-password', async (req, res) => {
+apiRouter.post('/auth/set-password', async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
     const { password } = req.body;
@@ -449,7 +427,7 @@ app.post('/api/auth/set-password', async (req, res) => {
 });
 
 // 3. Reset Admin Credentials back to First-Time State
-app.post('/api/auth/reset-credentials', async (req, res) => {
+apiRouter.post('/auth/reset-credentials', async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
     if (!ALLOWED_ADMIN_EMAILS.includes(email)) {
@@ -469,7 +447,7 @@ app.post('/api/auth/reset-credentials', async (req, res) => {
 });
 
 // 4. Login: Verify Password Hash in MongoDB
-app.post('/api/auth/login', async (req, res) => {
+apiRouter.post('/auth/login', async (req, res) => {
   try {
     const email = normalizeEmail(req.body.email);
     const { password } = req.body;
@@ -516,7 +494,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // 5. Verify Active Session
-app.get('/api/auth/verify', async (req, res) => {
+apiRouter.get('/auth/verify', async (req, res) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -540,7 +518,7 @@ app.get('/api/auth/verify', async (req, res) => {
 });
 
 // 6. Change / Reset Password
-app.post('/api/auth/change-password', authenticateAdmin, async (req, res) => {
+apiRouter.post('/auth/change-password', authenticateAdmin, async (req, res) => {
   try {
     const email = req.admin.email;
     const { oldPassword, newPassword } = req.body;
@@ -580,11 +558,11 @@ app.post('/api/auth/change-password', authenticateAdmin, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// PUBLIC LEAD INGESTION (CONTACT FORM) - ATOMIC CONVERSATION CREATION
+// PUBLIC LEAD INGESTION (CONTACT FORM)
 // -----------------------------------------------------------------------------
-app.post('/api/inquiries', async (req, res) => {
+apiRouter.post('/inquiries', async (req, res) => {
   try {
-    const { name, email, whatsapp, message, plan, extraMonths, totalPrice, budget, projectType } = req.body;
+    const { name, email, whatsapp, message, plan, extraMonths, totalPrice } = req.body;
 
     if (!name || !email) {
       return res.status(400).json({ error: 'Name and email are required.' });
@@ -593,7 +571,6 @@ app.post('/api/inquiries', async (req, res) => {
     const normalizedClientEmail = normalizeEmail(email);
     const nowIso = new Date().toISOString();
 
-    // 1. Calculate Reference Code
     let totalExisting = 0;
     if (isConnected && db) {
       totalExisting = await db.collection('conversations').countDocuments();
@@ -602,7 +579,6 @@ app.post('/api/inquiries', async (req, res) => {
     }
     const referenceCode = `WBR-2026-${String(totalExisting + 1).padStart(4, '0')}`;
 
-    // 2. Check if a conversation already exists for this client email
     let existingConv = null;
     if (isConnected && db) {
       existingConv = await db.collection('conversations').findOne({
@@ -627,13 +603,12 @@ app.post('/api/inquiries', async (req, res) => {
       plan: plan || existingConv?.plan || 'Dynamic Build',
       extraMonths: extraMonths !== undefined ? Number(extraMonths) : (existingConv?.extraMonths || 0),
       total: totalPrice !== undefined ? Number(totalPrice) : (existingConv?.total || 10000),
-      status: 'new', // New contact form submissions are created with status "new"
+      status: 'new',
       unreadCount: unreadCount,
       lastMessageAt: nowIso,
       createdAt: existingConv?.createdAt || nowIso
     };
 
-    // 3. Create First Inbound Message
     const messageId = `msg-${Date.now()}`;
     const messageDoc = {
       id: messageId,
@@ -645,7 +620,6 @@ app.post('/api/inquiries', async (req, res) => {
       readAt: null
     };
 
-    // 4. Save Conversation and Message in One Server Operation
     if (isConnected && db) {
       await db.collection('conversations').updateOne(
         { id: conversationId },
@@ -654,7 +628,6 @@ app.post('/api/inquiries', async (req, res) => {
       );
       await db.collection('messages').insertOne({ ...messageDoc, _id: messageId });
       
-      // Also sync to inquiries collection for backwards compatibility
       await db.collection('inquiries').updateOne(
         { id: `inq-${conversationId.replace('conv-', '')}` },
         {
@@ -687,11 +660,9 @@ app.post('/api/inquiries', async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// CONVERSATIONS & MESSAGES API (SERVER-PROTECTED SINGLE SOURCE OF TRUTH)
+// CONVERSATIONS & MESSAGES API
 // -----------------------------------------------------------------------------
-
-// 1. List Conversations (Single Source of Truth)
-app.get('/api/admin/conversations', authenticateAdmin, async (req, res) => {
+apiRouter.get('/admin/conversations', authenticateAdmin, async (req, res) => {
   try {
     const { status, q } = req.query;
 
@@ -718,7 +689,6 @@ app.get('/api/admin/conversations', authenticateAdmin, async (req, res) => {
       convList.sort((a, b) => new Date(b.lastMessageAt || b.createdAt) - new Date(a.lastMessageAt || a.createdAt));
     }
 
-    // Attach latest message preview for each conversation
     const enhancedConversations = await Promise.all(
       convList.map(async (conv) => {
         let lastMsg = null;
@@ -744,7 +714,6 @@ app.get('/api/admin/conversations', authenticateAdmin, async (req, res) => {
       })
     );
 
-    // Filter by search query if provided
     let results = enhancedConversations;
     if (q && q.trim()) {
       const queryLower = q.trim().toLowerCase();
@@ -769,8 +738,7 @@ app.get('/api/admin/conversations', authenticateAdmin, async (req, res) => {
   }
 });
 
-// 2. Get Single Conversation + Messages (and mark as read)
-app.get('/api/admin/conversations/:id', authenticateAdmin, async (req, res) => {
+apiRouter.get('/admin/conversations/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -788,13 +756,11 @@ app.get('/api/admin/conversations/:id', authenticateAdmin, async (req, res) => {
         .sort({ createdAt: 1 })
         .toArray();
 
-      // Mark all unread messages as read
       await db.collection('messages').updateMany(
         { conversationId: id, readAt: null },
         { $set: { readAt: new Date().toISOString() } }
       );
 
-      // Reset conversation unreadCount to 0
       await db.collection('conversations').updateOne(
         { id },
         { $set: { unreadCount: 0 } }
@@ -828,8 +794,7 @@ app.get('/api/admin/conversations/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
-// 3. Post Message to Thread (Outbound Email, Note, or Inbound Client Message)
-app.post('/api/admin/conversations/:id/messages', authenticateAdmin, async (req, res) => {
+apiRouter.post('/admin/conversations/:id/messages', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { type, channel, body, subject } = req.body;
@@ -849,7 +814,6 @@ app.post('/api/admin/conversations/:id/messages', authenticateAdmin, async (req,
       return res.status(404).json({ error: 'Conversation does not exist.' });
     }
 
-    // If outbound email, dispatch through Resend before saving
     if (type === 'outbound' && channel === 'email') {
       try {
         await sendEmailViaResend({
@@ -879,12 +843,11 @@ app.post('/api/admin/conversations/:id/messages', authenticateAdmin, async (req,
       readAt: nowIso
     };
 
-    // Determine new conversation status
     let updatedStatus = conv.status;
     if (type === 'outbound') {
-      updatedStatus = 'active'; // Sending a reply sets status to "active"
+      updatedStatus = 'active';
     } else if (type === 'inbound') {
-      updatedStatus = 'awaiting_reply'; // A new inbound message sets status to "awaiting_reply"
+      updatedStatus = 'awaiting_reply';
     }
 
     const updatedConvFields = {
@@ -915,8 +878,7 @@ app.post('/api/admin/conversations/:id/messages', authenticateAdmin, async (req,
   }
 });
 
-// 4. Update Conversation Status (Shared between Leads & Conversations)
-app.patch('/api/admin/conversations/:id', authenticateAdmin, async (req, res) => {
+apiRouter.patch('/admin/conversations/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -954,8 +916,7 @@ app.patch('/api/admin/conversations/:id', authenticateAdmin, async (req, res) =>
   }
 });
 
-// 5. Delete Conversation / Lead (Permanent removal from all collections)
-app.delete('/api/admin/conversations/:id', authenticateAdmin, async (req, res) => {
+apiRouter.delete('/admin/conversations/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const possibleIds = [
@@ -982,7 +943,6 @@ app.delete('/api/admin/conversations/:id', authenticateAdmin, async (req, res) =
       });
     }
 
-    // Also remove from local in-memory fallback store
     possibleIds.forEach((pid) => {
       localConversations.delete(pid);
     });
@@ -1000,8 +960,7 @@ app.delete('/api/admin/conversations/:id', authenticateAdmin, async (req, res) =
   }
 });
 
-// Also support DELETE /api/inquiries/:id
-app.delete('/api/inquiries/:id', authenticateAdmin, async (req, res) => {
+apiRouter.delete('/inquiries/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const possibleIds = [
@@ -1043,8 +1002,7 @@ app.delete('/api/inquiries/:id', authenticateAdmin, async (req, res) => {
   }
 });
 
-// 6. Real Admin KPI Stats (Calculated strictly from real conversations)
-app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
+apiRouter.get('/admin/stats', authenticateAdmin, async (req, res) => {
   try {
     let convList = [];
     if (isConnected && db) {
@@ -1061,7 +1019,6 @@ app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
     const awaitingReply = convList.filter((c) => c.status === 'awaiting_reply').length;
     const activeConversations = convList.filter((c) => c.status === 'active').length;
     
-    // Won conversations this month
     const wonThisMonthList = convList.filter((c) => {
       if (c.status !== 'won') return false;
       const cDate = new Date(c.updatedAt || c.lastMessageAt || c.createdAt);
@@ -1071,7 +1028,6 @@ app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
     const wonThisMonthCount = wonThisMonthList.length;
     const wonRevenue = wonThisMonthList.reduce((acc, c) => acc + (Number(c.total) || 0), 0);
     
-    // Total unread: sum of conversations requiring action
     const totalUnread = convList.reduce((acc, c) => {
       const count = Number(c.unreadCount) || 0;
       if (count > 0 || c.status === 'new' || c.status === 'awaiting_reply') {
@@ -1098,8 +1054,7 @@ app.get('/api/admin/stats', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Diagnostic endpoint: Collections status and counts
-app.get('/api/admin/collections-status', authenticateAdmin, async (req, res) => {
+apiRouter.get('/admin/collections-status', authenticateAdmin, async (req, res) => {
   try {
     let adminsCount = 0;
     let conversationsCount = 0;
@@ -1139,8 +1094,7 @@ app.get('/api/admin/collections-status', authenticateAdmin, async (req, res) => 
   }
 });
 
-// Check API & MongoDB Status
-app.get('/api/status', async (req, res) => {
+apiRouter.get('/status', async (req, res) => {
   await ensureDbConnected();
   const currentUrl = process.env.MONGO_URL || rawMongoUrl;
   res.json({
@@ -1156,7 +1110,7 @@ app.get('/api/status', async (req, res) => {
 });
 
 // High-Quality Image Upload Endpoint (via MongoDB GridFS)
-app.post('/api/upload', upload.single('image'), async (req, res) => {
+apiRouter.post('/upload', upload.single('image'), async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: "No image file provided in request." });
@@ -1218,7 +1172,7 @@ app.post('/api/upload', upload.single('image'), async (req, res) => {
 });
 
 // Serve Image by ID from MongoDB GridFS
-app.get('/api/images/:id', async (req, res) => {
+apiRouter.get('/images/:id', async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -1248,57 +1202,72 @@ app.get('/api/images/:id', async (req, res) => {
     downloadStream.pipe(res);
   } catch (error) {
     console.error("Error retrieving image from GridFS:", error);
-    res.status(500).json({ error: "Failed to fetch image from database", details: error.message });
+    res.status(500).json({ error: "Error retrieving image", details: error.message });
   }
 });
 
 // -----------------------------------------------------------------------------
-// PROJECTS API (MongoDB Powered)
+// PROJECTS MANAGEMENT API
 // -----------------------------------------------------------------------------
-
-// 1. Get All Projects (Public)
-app.get('/api/projects', async (req, res) => {
+apiRouter.get('/projects', async (req, res) => {
   try {
+    await ensureDbConnected();
+    let projectList = [];
     if (isConnected && db) {
-      const projectsList = await db.collection('projects')
+      projectList = await db.collection('projects')
         .find({ deletedAt: { $exists: false } })
-        .sort({ order: 1, createdAt: 1 })
+        .sort({ order: 1, createdAt: -1 })
         .toArray();
-      return res.json({ success: true, projects: projectsList });
+      
+      if (projectList.length === 0) {
+        const initialDocs = defaultProjects.map((p, idx) => ({
+          ...p,
+          order: idx + 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }));
+        await db.collection('projects').insertMany(initialDocs);
+        projectList = initialDocs;
+      }
     } else {
-      const list = Array.from(localProjects.values()).filter((p) => !p.deletedAt);
-      return res.json({ success: true, projects: list.length > 0 ? list : defaultProjects });
+      projectList = Array.from(localProjects.values()).filter(p => !p.deletedAt);
+      projectList.sort((a, b) => (a.order || 0) - (b.order || 0));
     }
+
+    res.json({
+      success: true,
+      projects: projectList,
+      count: projectList.length
+    });
   } catch (err) {
     console.error('Fetch projects error:', err);
-    res.status(500).json({ error: 'Failed to fetch projects.', details: err.message });
+    res.status(500).json({ error: 'Failed to load projects list.', details: err.message });
   }
 });
 
-// 2. Get Single Project by ID (Public)
-app.get('/api/projects/:id', async (req, res) => {
+apiRouter.get('/projects/:id', async (req, res) => {
   try {
+    await ensureDbConnected();
     const { id } = req.params;
+    let project = null;
+
     if (isConnected && db) {
-      const project = await db.collection('projects').findOne({
-        id,
-        deletedAt: { $exists: false }
-      });
-      if (project) {
-        return res.json({ success: true, project });
-      }
-      return res.status(404).json({ error: 'Project not found.' });
+      project = await db.collection('projects').findOne({ id, deletedAt: { $exists: false } });
     } else {
-      const match = localProjects.get(id) || defaultProjects.find((p) => p.id === id);
-      if (match && !match.deletedAt) return res.json({ success: true, project: match });
+      project = localProjects.get(id);
+    }
+
+    if (!project || project.deletedAt) {
       return res.status(404).json({ error: 'Project not found.' });
     }
+
+    res.json({ success: true, project });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch project.', details: err.message });
+    console.error('Get project error:', err);
+    res.status(500).json({ error: 'Failed to retrieve project details.', details: err.message });
   }
 });
 
-// 3. Create Project (Admin Protected)
 const handleCreateProject = async (req, res) => {
   try {
     await ensureDbConnected();
@@ -1331,10 +1300,9 @@ const handleCreateProject = async (req, res) => {
     res.status(500).json({ error: 'Failed to create project.', details: err.message });
   }
 };
-app.post('/api/admin/projects', authenticateAdmin, handleCreateProject);
-app.post('/api/projects', authenticateAdmin, handleCreateProject);
+apiRouter.post('/admin/projects', authenticateAdmin, handleCreateProject);
+apiRouter.post('/projects', authenticateAdmin, handleCreateProject);
 
-// 4. Update Project (Admin Protected - with Upsert)
 const handleUpdateProject = async (req, res) => {
   try {
     await ensureDbConnected();
@@ -1374,11 +1342,10 @@ const handleUpdateProject = async (req, res) => {
     res.status(500).json({ error: 'Failed to update project.', details: err.message });
   }
 };
-app.put('/api/admin/projects/:id', authenticateAdmin, handleUpdateProject);
-app.put('/api/projects/:id', authenticateAdmin, handleUpdateProject);
+apiRouter.put('/admin/projects/:id', authenticateAdmin, handleUpdateProject);
+apiRouter.put('/projects/:id', authenticateAdmin, handleUpdateProject);
 
-// 5. Batch Sync Projects to MongoDB (Admin Protected)
-app.post('/api/admin/projects/sync', authenticateAdmin, async (req, res) => {
+apiRouter.post('/admin/projects/sync', authenticateAdmin, async (req, res) => {
   try {
     await ensureDbConnected();
     const { projects: incomingProjects } = req.body;
@@ -1415,7 +1382,6 @@ app.post('/api/admin/projects/sync', authenticateAdmin, async (req, res) => {
   }
 });
 
-// 6. Delete Project (Admin Protected)
 const handleDeleteProject = async (req, res) => {
   try {
     await ensureDbConnected();
@@ -1432,12 +1398,33 @@ const handleDeleteProject = async (req, res) => {
     res.status(500).json({ error: 'Failed to delete project.', details: err.message });
   }
 };
-app.delete('/api/admin/projects/:id', authenticateAdmin, handleDeleteProject);
-app.delete('/api/projects/:id', authenticateAdmin, handleDeleteProject);
+apiRouter.delete('/admin/projects/:id', authenticateAdmin, handleDeleteProject);
+apiRouter.delete('/projects/:id', authenticateAdmin, handleDeleteProject);
 
 // -----------------------------------------------------------------------------
-// SERVE STATIC PRODUCTION FRONTEND (Vite dist/ & SPA Routing)
+// ROUTER MOUNTING & CLIENT-SIDE SPA SERVING
 // -----------------------------------------------------------------------------
+
+// DB readiness check middleware
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api') || !req.accepts('html')) {
+    if (!isConnected || !db) {
+      await ensureDbConnected();
+    }
+  }
+  next();
+});
+
+// Dual mounting: handles both `/api/*` and direct route invocations
+app.use('/api', apiRouter);
+app.use(apiRouter);
+
+// Fallback 404 for missing API endpoints (ensures JSON responses, never HTML)
+apiRouter.use((req, res) => {
+  res.status(404).json({ error: `API endpoint not found: ${req.method} ${req.originalUrl || req.url}` });
+});
+
+// SERVE STATIC PRODUCTION FRONTEND (Vite dist/ & SPA Routing)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const distPath = path.join(__dirname, 'dist');
@@ -1446,18 +1433,32 @@ app.use(express.static(distPath));
 
 // Catch-all route to serve index.html for React Router client-side routes (/admin, /work/1, etc.)
 app.use((req, res, next) => {
-  if (req.method === 'GET' && !req.path.startsWith('/api')) {
-    const indexPath = path.join(distPath, 'index.html');
-    return res.sendFile(indexPath, (err) => {
-      if (err) {
-        res.status(404).send('WebRêve: Frontend bundle not found. Please run "npm run build".');
-      }
-    });
+  const p = req.path;
+  const isApi = p.startsWith('/api') ||
+    p.startsWith('/auth') ||
+    p.startsWith('/inquiries') ||
+    p.startsWith('/upload') ||
+    p.startsWith('/images') ||
+    p.startsWith('/status') ||
+    p.startsWith('/projects') ||
+    p.startsWith('/admin/stats') ||
+    p.startsWith('/admin/conversations') ||
+    p.startsWith('/admin/projects') ||
+    p.startsWith('/admin/collections-status');
+
+  if (req.method !== 'GET' || isApi || req.headers.accept?.includes('application/json')) {
+    return res.status(404).json({ error: `Not found: ${req.method} ${req.originalUrl || req.url}` });
   }
-  next();
+
+  const indexPath = path.join(distPath, 'index.html');
+  return res.sendFile(indexPath, (err) => {
+    if (err) {
+      res.status(404).send('WebRêve: Frontend bundle not found. Please run "npm run build".');
+    }
+  });
 });
 
-// Start Server (only if not running inside a serverless handler or imported by Vercel)
+// Start Server (only if not running inside serverless handler)
 if (process.env.NODE_ENV !== 'test' && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`🚀 WebRêve MongoDB & API Server running on http://localhost:${PORT}`);
