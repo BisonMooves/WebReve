@@ -50,8 +50,11 @@ export function AuthProvider({ children }) {
           } else {
             logout();
           }
+        } else if (res.status === 401 || res.status === 403) {
+          // Token signature invalid or expired - prompt clean re-login
+          logout();
         } else {
-          // If server is offline, maintain valid session if email is in allowed list
+          // If server is temporarily unreachable (500/503), maintain fallback session
           const savedUser = localStorage.getItem('webreve_admin_user');
           if (savedUser) {
             const parsed = JSON.parse(savedUser);

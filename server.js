@@ -1302,7 +1302,7 @@ app.get('/api/projects/:id', async (req, res) => {
 const handleCreateProject = async (req, res) => {
   try {
     await ensureDbConnected();
-    const projectData = req.body;
+    const { _id, ...projectData } = req.body;
     const projectId = projectData.id || `proj-${Date.now()}`;
     const nowIso = new Date().toISOString();
 
@@ -1339,16 +1339,26 @@ const handleUpdateProject = async (req, res) => {
   try {
     await ensureDbConnected();
     const { id } = req.params;
-    const updatedFields = req.body;
+    const { _id, ...updatedFields } = req.body;
     const nowIso = new Date().toISOString();
 
+    const setPayload = {
+      ...updatedFields,
+      id,
+      updatedAt: nowIso
+    };
+    if (updatedFields.createdAt) {
+      setPayload.createdAt = updatedFields.createdAt;
+    }
+
     if (isConnected && db) {
+      const updateQuery = { $set: setPayload };
+      if (!updatedFields.createdAt) {
+        updateQuery.$setOnInsert = { createdAt: nowIso };
+      }
       await db.collection('projects').updateOne(
         { id },
-        { 
-          $set: { ...updatedFields, id, updatedAt: nowIso },
-          $setOnInsert: { createdAt: nowIso }
-        },
+        updateQuery,
         { upsert: true }
       );
       console.log(`📝 Upserted project in MongoDB: ${id}`);
@@ -1379,13 +1389,18 @@ app.post('/api/admin/projects/sync', authenticateAdmin, async (req, res) => {
     if (isConnected && db) {
       for (const p of incomingProjects) {
         if (!p.id) continue;
+        const { _id, ...cleanProject } = p;
         const nowIso = new Date().toISOString();
+        const setPayload = { 
+          ...cleanProject, 
+          id: cleanProject.id,
+          updatedAt: nowIso,
+          createdAt: cleanProject.createdAt || nowIso
+        };
+
         await db.collection('projects').updateOne(
           { id: p.id },
-          { 
-            $set: { ...p, updatedAt: nowIso },
-            $setOnInsert: { createdAt: p.createdAt || nowIso }
-          },
+          { $set: setPayload },
           { upsert: true }
         );
       }
