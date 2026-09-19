@@ -22,8 +22,9 @@ services:
   # ----------------------------------------------------------------------------
   # 2. FRONTEND CLIENT (Vite React Static Site)
   # ----------------------------------------------------------------------------
-  - type: static
+  - type: web
     name: webreve-client
+    runtime: static
     rootDir: client
     buildCommand: npm install && npm run build
     staticPublishPath: ./dist
