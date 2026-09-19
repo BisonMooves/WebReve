@@ -58,7 +58,7 @@ export default function MongoStatusBadge() {
     return (
       <div className="flex items-center gap-1.5 font-mono text-[10px] text-white bg-[#1A1512] px-2.5 py-1 border border-[#1A1512]">
         <CheckCircle2 className="w-3 h-3 text-[#10B981]" />
-        <span className="font-bold tracking-wider">MONGODB GRIDFS ACTIVE</span>
+        <span className="font-bold tracking-wider">MONGODB ATLAS CONNECTED</span>
       </div>
     );
   }
@@ -67,18 +67,21 @@ export default function MongoStatusBadge() {
     return (
       <div
         className="flex items-center gap-1.5 font-mono text-[10px] text-[#C1512F] bg-[#C1512F]/10 px-2.5 py-1 border border-[#C1512F]/40 cursor-help"
-        title="Replace <db_username> in .env with your MongoDB Atlas database username to enable remote GridFS sync"
+        title="Replace <db_username> in host Environment Variables with your MongoDB Atlas database username."
       >
         <AlertTriangle className="w-3 h-3" />
-        <span className="font-bold">SET DB USERNAME IN .ENV</span>
+        <span className="font-bold">SET DB USERNAME IN HOST ENV</span>
       </div>
     );
   }
 
   return (
-    <div className="flex items-center gap-1.5 font-mono text-[10px] text-[#1A1512]/70 bg-[#1A1512]/5 px-2.5 py-1 border border-[#1A1512]/20">
-      <Database className="w-3 h-3 text-[#C1512F]" />
-      <span>MONGODB READY</span>
+    <div
+      className="flex items-center gap-1.5 font-mono text-[10px] text-[#C1512F] bg-[#C1512F]/10 px-2.5 py-1 border border-[#C1512F]/30 cursor-help"
+      title={status.error || 'MongoDB is not connected. Ensure MONGO_URL is set in Vercel/Render Environment Variables and IP 0.0.0.0/0 is allowed in Atlas.'}
+    >
+      <AlertTriangle className="w-3 h-3 text-[#C1512F]" />
+      <span className="font-bold">MONGODB OFFLINE (LOCAL FALLBACK)</span>
     </div>
   );
 }

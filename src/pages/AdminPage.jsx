@@ -46,7 +46,11 @@ import {
   Filter,
   ArrowLeft,
   Calendar,
-  Layers
+  Layers,
+  UploadCloud,
+  Image as ImageIcon,
+  Sliders,
+  Grid
 } from 'lucide-react';
 
 function formatRelativeTime(dateString) {
@@ -156,6 +160,7 @@ export default function AdminPage() {
     category: 'SaaS & AI',
     result: '+120% Conversion',
     tagline: '',
+    liveUrl: '',
     image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop',
     problem: '',
     solution: '',
@@ -325,6 +330,118 @@ export default function AdminPage() {
     }
   ];
 
+  // Gallery Management Helpers
+  const handleAddBlankGalleryItem = () => {
+    const newItem = {
+      id: `frame-${Date.now()}-${(projectForm.galleryItems?.length || 0) + 1}`,
+      title: 'New Interface View',
+      cat: 'Desktop',
+      kind: 'desktop',
+      tone: 'ink',
+      c: 8,
+      r: 4,
+      src: '',
+      note: 'Key workflow feature and interactive presentation.'
+    };
+    setProjectForm(prev => ({
+      ...prev,
+      galleryItems: [...(prev.galleryItems || []), newItem]
+    }));
+  };
+
+  const handleUpdateGalleryItem = (index, field, value) => {
+    setProjectForm(prev => {
+      const items = [...(prev.galleryItems || [])];
+      if (items[index]) {
+        items[index] = { ...items[index], [field]: value };
+        // Sync kind with cat
+        if (field === 'cat') {
+          const lower = value.toLowerCase();
+          if (lower.includes('desktop')) {
+            items[index].kind = 'desktop';
+            items[index].c = 8;
+          } else if (lower.includes('mobile')) {
+            items[index].kind = 'mobile';
+            items[index].c = 4;
+          } else if (lower.includes('detail')) {
+            items[index].kind = 'detail';
+            items[index].c = 4;
+          } else {
+            items[index].kind = 'system';
+            items[index].c = 5;
+          }
+        }
+      }
+      return { ...prev, galleryItems: items };
+    });
+  };
+
+  const handleDeleteGalleryItem = (index) => {
+    setProjectForm(prev => ({
+      ...prev,
+      galleryItems: (prev.galleryItems || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const [isBatchUploadingGallery, setIsBatchUploadingGallery] = useState(false);
+
+  const handleBatchGalleryUpload = async (files) => {
+    if (!files || files.length === 0) return;
+    setIsBatchUploadingGallery(true);
+    const newItems = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      if (!file.type.startsWith('image/')) continue;
+      try {
+        const formData = new FormData();
+        formData.append('image', file);
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const contentType = response.headers.get('content-type') || '';
+        let url = '';
+        if (response.ok && contentType.includes('application/json')) {
+          const data = await response.json();
+          url = data.url;
+        }
+        if (!url) {
+          // Client-side high-res base64 fallback
+          url = await new Promise((res) => {
+            const r = new FileReader();
+            r.onload = (e) => res(e.target?.result || '');
+            r.readAsDataURL(file);
+          });
+        }
+        if (url) {
+          const cleanName = file.name.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ");
+          const isWide = i % 2 === 0;
+          newItems.push({
+            id: `frame-${Date.now()}-${i}`,
+            title: cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
+            cat: isWide ? "Desktop" : "Mobile",
+            kind: isWide ? "desktop" : "mobile",
+            tone: i % 3 === 0 ? "ink" : i % 3 === 1 ? "rust" : "paper",
+            c: isWide ? 8 : 4,
+            r: 4,
+            src: url,
+            note: `${cleanName} interactive screen view.`
+          });
+        }
+      } catch (err) {
+        console.warn("Gallery batch upload notice:", err.message);
+      }
+    }
+    setIsBatchUploadingGallery(false);
+    if (newItems.length > 0) {
+      setProjectForm(prev => ({
+        ...prev,
+        galleryItems: [...(prev.galleryItems || []), ...newItems]
+      }));
+      showToast(`Added ${newItems.length} image(s) to gallery.`);
+    }
+  };
+
   // Open Project Modal
   const openProjectModal = (proj = null) => {
     if (proj) {
@@ -339,6 +456,7 @@ export default function AdminPage() {
         category: proj.category || 'SaaS & AI',
         result: proj.result || '+120% Conversion',
         tagline: proj.tagline || '',
+        liveUrl: proj.liveUrl || '',
         image: proj.image || '',
         problem: proj.problem || '',
         solution: proj.solution || '',
@@ -360,6 +478,7 @@ export default function AdminPage() {
         category: 'SaaS & AI',
         result: '+120% Conversion',
         tagline: '',
+        liveUrl: '',
         image: defaultImg,
         problem: '',
         solution: '',
@@ -384,6 +503,7 @@ export default function AdminPage() {
       category: isCustomCategory ? customCategoryVal.trim() || 'Custom' : projectForm.category,
       result: projectForm.result,
       tagline: projectForm.tagline || 'Bespoke high-performance digital build.',
+      liveUrl: projectForm.liveUrl?.trim() || '',
       image: projectForm.image,
       problem: projectForm.problem || 'Legacy user experience and low conversion efficiency.',
       solution: projectForm.solution || 'Re-architected UX flow and ultra-fast visual presentation.',
@@ -1427,13 +1547,27 @@ export default function AdminPage() {
                         </p>
                       </div>
 
-                      <div className="pt-4 border-t border-[#1A1512]/15 flex items-center justify-between gap-2">
-                        <button
-                          onClick={() => openProjectModal(project)}
-                          className="px-3 py-1.5 border border-[#1A1512] bg-[#F0EBE1] hover:bg-[#1A1512] hover:text-white font-mono text-xs font-bold uppercase transition-colors cursor-pointer"
-                        >
-                          EDIT CASE STUDY
-                        </button>
+                      <div className="pt-4 border-t border-[#1A1512]/15 flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => openProjectModal(project)}
+                            className="px-3 py-1.5 border border-[#1A1512] bg-[#F0EBE1] hover:bg-[#1A1512] hover:text-white font-mono text-xs font-bold uppercase transition-colors cursor-pointer"
+                          >
+                            EDIT CASE STUDY
+                          </button>
+                          {project.liveUrl && (
+                            <a
+                              href={project.liveUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="px-2.5 py-1.5 border border-[#1A1512]/30 hover:border-[#1A1512] text-[#1A1512] hover:text-[#C1512F] font-mono text-[10px] font-bold uppercase transition-colors flex items-center gap-1 cursor-pointer bg-[#E8E2D7]/50"
+                              title="Visit live site"
+                            >
+                              <span>LIVE SITE</span>
+                              <ExternalLink className="w-3 h-3" />
+                            </a>
+                          )}
+                        </div>
                         <button
                           onClick={() => {
                             if (window.confirm(`Delete "${project.title}"?`)) {
@@ -1826,7 +1960,8 @@ export default function AdminPage() {
       {/* MODAL: PROJECT EDIT / CREATE */}
       {isProjectModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#1A1512]/70 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-[#F0EBE1] border border-[#1A1512] max-w-2xl w-full p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 max-h-[90vh] overflow-y-auto my-auto">
+          <div className="bg-[#F0EBE1] border border-[#1A1512] max-w-3xl w-full p-4 sm:p-6 md:p-8 space-y-4 sm:space-y-6 max-h-[92vh] overflow-y-auto my-auto shadow-2xl">
+            {/* Modal Header */}
             <div className="flex items-center justify-between border-b border-[#1A1512]/15 pb-3 sm:pb-4">
               <div>
                 <span className="font-mono text-[10px] font-bold text-[#C1512F] uppercase tracking-widest">
@@ -1837,120 +1972,511 @@ export default function AdminPage() {
                 </h2>
               </div>
               <button
+                type="button"
                 onClick={() => setIsProjectModalOpen(false)}
-                className="p-1.5 border border-[#1A1512]/20 hover:bg-[#1A1512] hover:text-white cursor-pointer"
+                className="p-1.5 border border-[#1A1512]/20 hover:bg-[#1A1512] hover:text-white cursor-pointer transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            {/* Modal Tabs Header */}
+            <div className="flex border border-[#1A1512]/20 bg-[#E8E2D7]/50 p-1 gap-1">
+              <button
+                type="button"
+                onClick={() => setProjectModalTab('metadata')}
+                className={`flex-1 py-2.5 px-3 font-mono text-[11px] font-bold uppercase tracking-wider text-center transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                  projectModalTab === 'metadata'
+                    ? 'bg-[#1A1512] text-white shadow-sm'
+                    : 'text-[#1A1512]/70 hover:text-[#1A1512] hover:bg-[#1A1512]/5'
+                }`}
+              >
+                <span>01. CORE & COVER</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setProjectModalTab('gallery')}
+                className={`flex-1 py-2.5 px-3 font-mono text-[11px] font-bold uppercase tracking-wider text-center transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                  projectModalTab === 'gallery'
+                    ? 'bg-[#1A1512] text-white shadow-sm'
+                    : 'text-[#1A1512]/70 hover:text-[#1A1512] hover:bg-[#1A1512]/5'
+                }`}
+              >
+                <span>02. GALLERY & IMAGES</span>
+                <span className={`px-1.5 py-0.2 text-[9px] font-mono font-bold ${
+                  projectModalTab === 'gallery' ? 'bg-[#C1512F] text-white' : 'bg-[#1A1512] text-white'
+                }`}>
+                  {projectForm.galleryItems?.length || 0}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setProjectModalTab('story')}
+                className={`flex-1 py-2.5 px-3 font-mono text-[11px] font-bold uppercase tracking-wider text-center transition-colors cursor-pointer flex items-center justify-center gap-1.5 ${
+                  projectModalTab === 'story'
+                    ? 'bg-[#1A1512] text-white shadow-sm'
+                    : 'text-[#1A1512]/70 hover:text-[#1A1512] hover:bg-[#1A1512]/5'
+                }`}
+              >
+                <span>03. METRICS & STORY</span>
+              </button>
+            </div>
+
             <form onSubmit={handleSaveProject} className="space-y-4 font-mono text-xs">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="font-bold text-[#1A1512]/70 uppercase">PROJECT TITLE *</label>
-                  <input
-                    type="text"
-                    required
-                    value={projectForm.title}
-                    onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
-                    className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none focus:border-[#1A1512]"
-                  />
-                </div>
+              {/* TAB 1: CORE & COVER */}
+              {projectModalTab === 'metadata' && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="font-bold text-[#1A1512]/70 uppercase">PROJECT TITLE *</label>
+                      <input
+                        type="text"
+                        required
+                        value={projectForm.title}
+                        onChange={(e) => setProjectForm({ ...projectForm, title: e.target.value })}
+                        placeholder="e.g. BisonMooves Logistics"
+                        className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none focus:border-[#1A1512]"
+                      />
+                    </div>
 
-                <div className="space-y-1">
-                  <label className="font-bold text-[#1A1512]/70 uppercase">CLIENT NAME</label>
-                  <input
-                    type="text"
-                    value={projectForm.client}
-                    onChange={(e) => setProjectForm({ ...projectForm, client: e.target.value })}
-                    className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none focus:border-[#1A1512]"
-                  />
-                </div>
-              </div>
+                    <div className="space-y-1">
+                      <label className="font-bold text-[#1A1512]/70 uppercase">CLIENT NAME</label>
+                      <input
+                        type="text"
+                        value={projectForm.client}
+                        onChange={(e) => setProjectForm({ ...projectForm, client: e.target.value })}
+                        placeholder="e.g. BisonMooves Enterprise"
+                        className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none focus:border-[#1A1512]"
+                      />
+                    </div>
+                  </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <label className="font-bold text-[#1A1512]/70 uppercase">CATEGORY</label>
-                  <select
-                    value={isCustomCategory ? '__custom__' : projectForm.category}
-                    onChange={(e) => {
-                      if (e.target.value === '__custom__') {
-                        setIsCustomCategory(true);
-                        if (!customCategoryVal) {
-                          setCustomCategoryVal('');
-                        }
-                      } else {
-                        setIsCustomCategory(false);
-                        setProjectForm({ ...projectForm, category: e.target.value });
-                      }
-                    }}
-                    className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-mono text-xs"
-                  >
-                    {standardCategories.map((c) => (
-                      <option key={c} value={c}>{c.toUpperCase()}</option>
-                    ))}
-                    <option value="__custom__">+ CUSTOM CATEGORY...</option>
-                  </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="font-bold text-[#1A1512]/70 uppercase">CATEGORY</label>
+                      <select
+                        value={isCustomCategory ? '__custom__' : projectForm.category}
+                        onChange={(e) => {
+                          if (e.target.value === '__custom__') {
+                            setIsCustomCategory(true);
+                            if (!customCategoryVal) {
+                              setCustomCategoryVal('');
+                            }
+                          } else {
+                            setIsCustomCategory(false);
+                            setProjectForm({ ...projectForm, category: e.target.value });
+                          }
+                        }}
+                        className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-mono text-xs"
+                      >
+                        {standardCategories.map((c) => (
+                          <option key={c} value={c}>{c.toUpperCase()}</option>
+                        ))}
+                        <option value="__custom__">+ CUSTOM CATEGORY...</option>
+                      </select>
 
-                  {isCustomCategory && (
+                      {isCustomCategory && (
+                        <input
+                          type="text"
+                          value={customCategoryVal}
+                          onChange={(e) => {
+                            setCustomCategoryVal(e.target.value);
+                            setProjectForm({ ...projectForm, category: e.target.value });
+                          }}
+                          placeholder="Type custom category name..."
+                          className="w-full mt-2 p-2.5 border border-[#C1512F] bg-[#F0EBE1] focus:outline-none font-mono text-xs"
+                          autoFocus
+                        />
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="font-bold text-[#1A1512]/70 uppercase">KEY RESULT / BADGE</label>
+                      <input
+                        type="text"
+                        value={projectForm.result}
+                        onChange={(e) => setProjectForm({ ...projectForm, result: e.target.value })}
+                        placeholder="e.g. +140% Conversion"
+                        className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="font-bold text-[#1A1512]/70 uppercase">TAGLINE / SHORT BRIEF</label>
                     <input
                       type="text"
-                      value={customCategoryVal}
-                      onChange={(e) => {
-                        setCustomCategoryVal(e.target.value);
-                        setProjectForm({ ...projectForm, category: e.target.value });
-                      }}
-                      placeholder="Type custom category name..."
-                      className="w-full mt-2 p-2.5 border border-[#C1512F] bg-[#F0EBE1] focus:outline-none font-mono text-xs"
-                      autoFocus
+                      value={projectForm.tagline}
+                      onChange={(e) => setProjectForm({ ...projectForm, tagline: e.target.value })}
+                      placeholder="e.g. Bespoke high-performance digital build."
+                      className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none"
                     />
-                  )}
+                  </div>
+
+                  {/* Live Website / Demo URL */}
+                  <div className="space-y-1">
+                    <label className="font-bold text-[#1A1512]/70 uppercase flex items-center justify-between">
+                      <span>LIVE SITE URL / DEMO LINK</span>
+                      <span className="text-[10px] text-[#1A1512]/40 font-normal">OPTIONAL (LINKS DIRECTLY TO CLIENT SITE)</span>
+                    </label>
+                    <div className="relative">
+                      <ExternalLink className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#1A1512]/40" />
+                      <input
+                        type="url"
+                        value={projectForm.liveUrl}
+                        onChange={(e) => setProjectForm({ ...projectForm, liveUrl: e.target.value })}
+                        placeholder="e.g. https://bisonmooves.com or https://client.app"
+                        className="w-full pl-9 pr-3 py-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none focus:border-[#1A1512] font-mono text-xs"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Primary Cover Image */}
+                  <div className="space-y-2 pt-2 border-t border-[#1A1512]/15">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-[#1A1512]/80 uppercase tracking-wider">
+                        PRIMARY COVER IMAGE (SHOWCASE MASTER)
+                      </label>
+                      <span className="text-[10px] text-[#1A1512]/60">Used on Home Grid & Case Study Hero</span>
+                    </div>
+                    <ImageUploader
+                      currentImage={projectForm.image}
+                      onImageUploaded={(url) => setProjectForm({ ...projectForm, image: url })}
+                    />
+                  </div>
+
+                  {/* Jump to Gallery Banner */}
+                  <div className="p-3 bg-[#E8E2D7] border border-[#1A1512]/20 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-[11px] text-[#1A1512]">
+                      <ImageIcon className="w-4 h-4 text-[#C1512F]" />
+                      <span>
+                        Need to add more images? Manage this project's Bento gallery ({projectForm.galleryItems?.length || 0} images attached).
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setProjectModalTab('gallery')}
+                      className="px-3 py-1 bg-[#1A1512] text-white hover:bg-[#C1512F] font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer shrink-0"
+                    >
+                      OPEN GALLERY TAB →
+                    </button>
+                  </div>
                 </div>
+              )}
 
-                <div className="space-y-1">
-                  <label className="font-bold text-[#1A1512]/70 uppercase">KEY RESULT / BADGE</label>
-                  <input
-                    type="text"
-                    value={projectForm.result}
-                    onChange={(e) => setProjectForm({ ...projectForm, result: e.target.value })}
-                    placeholder="e.g. +140% Conversion"
-                    className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none"
-                  />
+              {/* TAB 2: GALLERY & MULTIPLE IMAGES */}
+              {projectModalTab === 'gallery' && (
+                <div className="space-y-4">
+                  <div className="p-3 bg-[#E8E2D7]/70 border border-[#1A1512]/15 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#1A1512] uppercase tracking-wider">
+                        BENTO GALLERY & CASE STUDY SCREENSHOTS
+                      </span>
+                      <span className="px-2 py-0.5 bg-[#1A1512] text-white font-bold text-[10px]">
+                        {projectForm.galleryItems?.length || 0} SCREENSHOTS
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-[#1A1512]/70 font-sans">
+                      These images render in the interactive Case Study Bento Grid on the project detail page with lightbox zoom and device filters.
+                    </p>
+                  </div>
+
+                  {/* Batch Upload Dropzone */}
+                  <div className="border-2 border-dashed border-[#1A1512]/30 hover:border-[#C1512F] bg-[#1A1512]/5 p-4 sm:p-6 text-center space-y-3 transition-colors">
+                    {isBatchUploadingGallery ? (
+                      <div className="py-2 flex flex-col items-center justify-center space-y-2">
+                        <Loader2 className="w-6 h-6 animate-spin text-[#C1512F]" />
+                        <span className="font-bold uppercase tracking-wider text-[#1A1512]">
+                          UPLOADING SCREENSHOTS TO MONGODB GRIDFS...
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-10 h-10 mx-auto border border-[#1A1512]/20 bg-[#F0EBE1] flex items-center justify-center">
+                          <UploadCloud className="w-5 h-5 text-[#C1512F]" />
+                        </div>
+                        <div>
+                          <div className="font-bold uppercase tracking-wider text-[#1A1512]">
+                            BATCH ADD NEW SCREENSHOTS / IMAGES
+                          </div>
+                          <p className="text-[10px] text-[#1A1512]/60 mt-0.5">
+                            Drag & drop one or multiple image files here, or click button below
+                          </p>
+                        </div>
+                        <label className="inline-flex items-center gap-2 px-4 py-2 bg-[#1A1512] text-white hover:bg-[#C1512F] font-bold text-[10px] uppercase tracking-widest transition-colors cursor-pointer shadow-md">
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>SELECT IMAGE FILES (PNG, JPG, WEBP)</span>
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            onChange={(e) => {
+                              if (e.target.files && e.target.files.length > 0) {
+                                handleBatchGalleryUpload(Array.from(e.target.files));
+                              }
+                            }}
+                            className="hidden"
+                          />
+                        </label>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Gallery Items List */}
+                  <div className="space-y-3 pt-2">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-[#1A1512]/80 uppercase">
+                        GALLERY SCREENSHOTS ({projectForm.galleryItems?.length || 0})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={handleAddBlankGalleryItem}
+                        className="px-2.5 py-1 border border-[#1A1512]/30 hover:border-[#1A1512] hover:bg-[#1A1512] hover:text-white font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer flex items-center gap-1"
+                      >
+                        <Plus className="w-3 h-3" />
+                        <span>+ ADD CARD MANUALLY</span>
+                      </button>
+                    </div>
+
+                    {(!projectForm.galleryItems || projectForm.galleryItems.length === 0) ? (
+                      <div className="p-8 text-center border border-[#1A1512]/15 bg-[#F0EBE1] text-[#1A1512]/60 font-mono text-xs">
+                        No screenshots added yet. Upload files above to populate the case study gallery.
+                      </div>
+                    ) : (
+                      <div className="space-y-3 max-h-[420px] overflow-y-auto pr-1">
+                        {projectForm.galleryItems.map((item, idx) => (
+                          <div
+                            key={item.id || idx}
+                            className="p-3 border border-[#1A1512]/20 bg-[#F0EBE1] space-y-3"
+                          >
+                            <div className="flex items-center justify-between border-b border-[#1A1512]/10 pb-2">
+                              <span className="font-bold text-[#1A1512] text-[11px] flex items-center gap-2">
+                                <span className="px-1.5 py-0.2 bg-[#1A1512] text-white text-[9px] font-mono">
+                                  #{idx + 1}
+                                </span>
+                                <span>{item.title || 'Untitled Screenshot'}</span>
+                              </span>
+
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 border border-[#1A1512]/20 text-[9px] uppercase font-bold text-[#1A1512]/70">
+                                  {item.cat || 'Desktop'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteGalleryItem(idx)}
+                                  className="p-1 text-[#C1512F] hover:bg-[#C1512F] hover:text-white border border-[#C1512F]/30 transition-colors cursor-pointer"
+                                  title="Delete screenshot"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-start">
+                              {/* Thumbnail & File selector */}
+                              <div className="sm:col-span-4 space-y-1.5">
+                                <div className="relative aspect-[16/10] w-full bg-[#1A1512]/10 overflow-hidden border border-[#1A1512]/20">
+                                  {item.src ? (
+                                    <img
+                                      src={item.src}
+                                      alt={item.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="w-full h-full flex flex-col items-center justify-center text-[#1A1512]/40 text-[9px] p-2 text-center">
+                                      <ImageIcon className="w-6 h-6 mb-1 opacity-50" />
+                                      <span>NO IMAGE</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <label className="block w-full text-center py-1 bg-[#1A1512] text-white hover:bg-[#C1512F] font-bold text-[9px] uppercase tracking-wider transition-colors cursor-pointer">
+                                  <span>{item.src ? 'CHANGE IMAGE' : 'UPLOAD IMAGE'}</span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={async (e) => {
+                                      if (e.target.files && e.target.files[0]) {
+                                        const file = e.target.files[0];
+                                        try {
+                                          const formData = new FormData();
+                                          formData.append('image', file);
+                                          const res = await fetch('/api/upload', {
+                                            method: 'POST',
+                                            body: formData
+                                          });
+                                          const contentType = res.headers.get('content-type') || '';
+                                          if (res.ok && contentType.includes('application/json')) {
+                                            const data = await res.json();
+                                            if (data.url) {
+                                              handleUpdateGalleryItem(idx, 'src', data.url);
+                                              return;
+                                            }
+                                          }
+                                        } catch {}
+                                        // base64 fallback
+                                        const r = new FileReader();
+                                        r.onload = (ev) => {
+                                          if (ev.target?.result) {
+                                            handleUpdateGalleryItem(idx, 'src', ev.target.result);
+                                          }
+                                        };
+                                        r.readAsDataURL(file);
+                                      }
+                                    }}
+                                    className="hidden"
+                                  />
+                                </label>
+                              </div>
+
+                              {/* Item Details Form */}
+                              <div className="sm:col-span-8 space-y-2">
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                  <div className="space-y-0.5">
+                                    <label className="text-[10px] text-[#1A1512]/60 uppercase font-bold">
+                                      SCREEN TITLE
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={item.title || ''}
+                                      onChange={(e) => handleUpdateGalleryItem(idx, 'title', e.target.value)}
+                                      placeholder="e.g. Operations Dashboard"
+                                      className="w-full p-1.5 border border-[#1A1512]/20 bg-[#F0EBE1] text-[11px] focus:outline-none"
+                                    />
+                                  </div>
+
+                                  <div className="space-y-0.5">
+                                    <label className="text-[10px] text-[#1A1512]/60 uppercase font-bold">
+                                      DEVICE FRAME / CATEGORY
+                                    </label>
+                                    <select
+                                      value={item.cat || 'Desktop'}
+                                      onChange={(e) => handleUpdateGalleryItem(idx, 'cat', e.target.value)}
+                                      className="w-full p-1.5 border border-[#1A1512]/20 bg-[#F0EBE1] text-[11px] focus:outline-none font-mono"
+                                    >
+                                      <option value="Desktop">Desktop Hero (Wide)</option>
+                                      <option value="Mobile">Mobile Device (Phone Frame)</option>
+                                      <option value="Details">Detail / Interactive Card</option>
+                                      <option value="Systems">Design System / Typography</option>
+                                    </select>
+                                  </div>
+                                </div>
+
+                                <div className="space-y-0.5">
+                                  <label className="text-[10px] text-[#1A1512]/60 uppercase font-bold">
+                                    CAPTION / FEATURE NOTE
+                                  </label>
+                                  <input
+                                    type="text"
+                                    value={item.note || ''}
+                                    onChange={(e) => handleUpdateGalleryItem(idx, 'note', e.target.value)}
+                                    placeholder="Brief description of what this interface solves..."
+                                    className="w-full p-1.5 border border-[#1A1512]/20 bg-[#F0EBE1] text-[11px] focus:outline-none"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
 
-              <div className="space-y-1">
-                <label className="font-bold text-[#1A1512]/70 uppercase">TAGLINE / SHORT BRIEF</label>
-                <input
-                  type="text"
-                  value={projectForm.tagline}
-                  onChange={(e) => setProjectForm({ ...projectForm, tagline: e.target.value })}
-                  className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none"
-                />
-              </div>
+              {/* TAB 3: METRICS & STORY */}
+              {projectModalTab === 'story' && (
+                <div className="space-y-4">
+                  <div className="space-y-1">
+                    <label className="font-bold text-[#1A1512]/70 uppercase">
+                      01 / THE STRATEGIC CHALLENGE (PROBLEM)
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={projectForm.problem}
+                      onChange={(e) => setProjectForm({ ...projectForm, problem: e.target.value })}
+                      placeholder="Describe the client's previous obstacles, user friction, or legacy constraints..."
+                      className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-sans text-xs resize-none"
+                    />
+                  </div>
 
-              <div className="space-y-2">
-                <label className="font-bold text-[#1A1512]/70 uppercase">COVER IMAGE</label>
-                <ImageUploader
-                  currentImage={projectForm.image}
-                  onImageUploaded={(url) => setProjectForm({ ...projectForm, image: url })}
-                />
-              </div>
+                  <div className="space-y-1">
+                    <label className="font-bold text-[#1A1512]/70 uppercase">
+                      02 / THE ARCHITECTURAL SOLUTION
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={projectForm.solution}
+                      onChange={(e) => setProjectForm({ ...projectForm, solution: e.target.value })}
+                      placeholder="Describe the technical implementation, UX flows, and performance engineering delivered..."
+                      className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-sans text-xs resize-none"
+                    />
+                  </div>
 
-              <div className="pt-4 border-t border-[#1A1512]/15 flex flex-wrap items-center justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={() => setIsProjectModalOpen(false)}
-                  className="px-4 py-2 border border-[#1A1512]/30 hover:bg-[#1A1512]/10 cursor-pointer"
-                >
-                  CANCEL
-                </button>
-                <button
-                  type="submit"
-                  className="px-6 py-2 bg-[#1A1512] text-white hover:bg-[#C1512F] font-bold tracking-widest transition-colors cursor-pointer"
-                >
-                  SAVE PROJECT
-                </button>
+                  <div className="pt-2 border-t border-[#1A1512]/15 space-y-3">
+                    <label className="font-bold text-[#1A1512]/80 uppercase tracking-wider block">
+                      IMPACT METRICS STRIP
+                    </label>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="p-3 bg-[#E8E2D7]/50 border border-[#1A1512]/15 space-y-2">
+                        <span className="font-bold text-[10px] text-[#1A1512]/60 uppercase">METRIC 1</span>
+                        <input
+                          type="text"
+                          value={projectForm.metric1Label}
+                          onChange={(e) => setProjectForm({ ...projectForm, metric1Label: e.target.value })}
+                          placeholder="Label (e.g. Conversion Uplift)"
+                          className="w-full p-2 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none text-[11px]"
+                        />
+                        <input
+                          type="text"
+                          value={projectForm.metric1Val}
+                          onChange={(e) => setProjectForm({ ...projectForm, metric1Val: e.target.value })}
+                          placeholder="Value (e.g. +140%)"
+                          className="w-full p-2 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-bold text-sm text-[#C1512F]"
+                        />
+                      </div>
+
+                      <div className="p-3 bg-[#E8E2D7]/50 border border-[#1A1512]/15 space-y-2">
+                        <span className="font-bold text-[10px] text-[#1A1512]/60 uppercase">METRIC 2</span>
+                        <input
+                          type="text"
+                          value={projectForm.metric2Label}
+                          onChange={(e) => setProjectForm({ ...projectForm, metric2Label: e.target.value })}
+                          placeholder="Label (e.g. New ARR Added)"
+                          className="w-full p-2 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none text-[11px]"
+                        />
+                        <input
+                          type="text"
+                          value={projectForm.metric2Val}
+                          onChange={(e) => setProjectForm({ ...projectForm, metric2Val: e.target.value })}
+                          placeholder="Value (e.g. $4.2M)"
+                          className="w-full p-2 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-bold text-sm text-[#1A1512]"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Modal Actions Footer */}
+              <div className="pt-4 border-t border-[#1A1512]/15 flex flex-wrap items-center justify-between gap-3">
+                <div className="text-[10px] text-[#1A1512]/60">
+                  {editingProject ? 'Updating live portfolio in MongoDB' : 'Creating new portfolio item in MongoDB'}
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setIsProjectModalOpen(false)}
+                    className="px-4 py-2 border border-[#1A1512]/30 hover:bg-[#1A1512]/10 cursor-pointer font-bold transition-colors"
+                  >
+                    CANCEL
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-6 py-2 bg-[#1A1512] text-white hover:bg-[#C1512F] font-bold tracking-widest uppercase transition-colors cursor-pointer shadow-lg"
+                  >
+                    SAVE PROJECT
+                  </button>
+                </div>
               </div>
             </form>
           </div>

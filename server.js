@@ -207,51 +207,54 @@ async function initCollectionsAndIndexes() {
 }
 
 // Connect to MongoDB
-async function connectDB() {
-  if (!rawMongoUrl) {
-    connectionError = "MONGO_URL is missing from .env";
-    console.warn("⚠️  " + connectionError);
-    await initCollectionsAndIndexes();
-    return;
+async function ensureDbConnected() {
+  if (isConnected && db) return db;
+  const currentUrl = process.env.MONGO_URL || rawMongoUrl;
+  if (!currentUrl) {
+    connectionError = "MONGO_URL is missing in environment variables.";
+    return null;
   }
-
-  if (rawMongoUrl.includes('<db_username>')) {
-    connectionError = "MONGO_URL contains placeholder '<db_username>'. Please replace it with your MongoDB Atlas database user username in .env.";
-    console.warn("⚠️  " + connectionError);
-    await initCollectionsAndIndexes();
-    return;
+  if (currentUrl.includes('<db_username>')) {
+    connectionError = "MONGO_URL contains placeholder '<db_username>'. Please set database credentials in environment variables.";
+    return null;
   }
-
   try {
-    mongoClient = new MongoClient(rawMongoUrl, {
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000
-    });
+    if (!mongoClient) {
+      mongoClient = new MongoClient(currentUrl, {
+        maxPoolSize: 10,
+        serverSelectionTimeoutMS: 5000
+      });
+    }
     await mongoClient.connect();
     db = mongoClient.db('webreve_db');
     gridfsBucket = new GridFSBucket(db, { bucketName: 'images' });
     isConnected = true;
     connectionError = null;
-    console.log("✅ Successfully connected to MongoDB Atlas (WebReve Database & GridFS Bucket).");
     await initCollectionsAndIndexes();
-    await migrateAndBackfillConversations();
+    return db;
   } catch (err) {
     isConnected = false;
     connectionError = err.message;
     console.error("❌ MongoDB connection error:", err.message);
-    await initCollectionsAndIndexes();
+    return null;
+  }
+}
+
+async function connectDB() {
+  await ensureDbConnected();
+  if (isConnected) {
+    console.log("✅ Successfully connected to MongoDB Atlas (WebReve Database & GridFS Bucket).");
+    await migrateAndBackfillConversations();
   }
 }
 
 connectDB();
 
-// Ensure DB is connected in serverless environments (Vercel)
+// Ensure DB is connected in all environments (Vercel Serverless / Render Web Service)
 app.use(async (req, res, next) => {
-  if (!isConnected && rawMongoUrl && !rawMongoUrl.includes('<db_username>') && !mongoClient) {
-    try {
-      await connectDB();
-    } catch (e) {
-      console.warn("DB reconnection attempt notice:", e.message);
+  if (req.path.startsWith('/api')) {
+    if (!isConnected || !db) {
+      await ensureDbConnected();
     }
   }
   next();
@@ -1124,14 +1127,16 @@ app.get('/api/admin/collections-status', authenticateAdmin, async (req, res) => 
 });
 
 // Check API & MongoDB Status
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
+  await ensureDbConnected();
+  const currentUrl = process.env.MONGO_URL || rawMongoUrl;
   res.json({
     connected: isConnected,
     database: isConnected ? 'webreve_db' : null,
     gridfsReady: !!gridfsBucket,
     error: connectionError,
-    mongoUrlConfigured: !!rawMongoUrl,
-    hasPlaceholder: rawMongoUrl.includes('<db_username>'),
+    mongoUrlConfigured: !!currentUrl,
+    hasPlaceholder: currentUrl ? currentUrl.includes('<db_username>') : false,
     allowedEmails: ALLOWED_ADMIN_EMAILS,
     resendConfigured: !!process.env.RESEND_API_KEY
   });

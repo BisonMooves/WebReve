@@ -124,6 +124,17 @@ export default function ProjectDetailPage() {
                 {project.year}
               </span>
             )}
+            {project.liveUrl && (
+              <a
+                href={project.liveUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-1 bg-[#C1512F] text-white hover:bg-[#1A1512] transition-colors flex items-center gap-1.5 uppercase font-bold text-[10px] sm:text-xs tracking-wider cursor-pointer shadow-sm"
+              >
+                <span>VISIT LIVE PLATFORM</span>
+                <ArrowUpRight className="w-3.5 h-3.5" />
+              </a>
+            )}
           </div>
 
           {/* Large Title & Tagline */}
@@ -199,6 +210,21 @@ export default function ProjectDetailPage() {
                   <span className="text-[#1A1512]/50 text-[10px] uppercase block">SECTOR</span>
                   <span className="font-bold text-sm text-[#1A1512]">{project.category}</span>
                 </div>
+
+                {project.liveUrl && (
+                  <div>
+                    <span className="text-[#1A1512]/50 text-[10px] uppercase block">LIVE PLATFORM</span>
+                    <a
+                      href={project.liveUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 font-bold text-xs text-[#C1512F] hover:underline pt-1 break-all"
+                    >
+                      <span>{project.liveUrl.replace(/^https?:\/\//, '')}</span>
+                      <ArrowUpRight className="w-3.5 h-3.5 shrink-0" />
+                    </a>
+                  </div>
+                )}
 
                 <div>
                   <span className="text-[#1A1512]/50 text-[10px] uppercase block">SERVICES DELIVERED</span>

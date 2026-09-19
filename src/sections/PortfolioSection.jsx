@@ -56,11 +56,26 @@ export default function PortfolioSection() {
                   {project.tagline}
                 </p>
 
-                <div className="pt-3 border-t border-[#1A1512]/10 flex items-center justify-between font-mono text-[11px] sm:text-xs font-bold tracking-widest">
+                <div className="pt-3 border-t border-[#1A1512]/10 flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] sm:text-xs font-bold tracking-widest">
                   <span className="text-[#1A1512]/60 uppercase">{project.category}</span>
-                  <span className="text-[#1A1512] group-hover:text-[#C1512F] flex items-center gap-1 transition-colors">
-                    READ CASE STUDY <span className="font-sans font-bold">→</span>
-                  </span>
+                  <div className="flex items-center gap-3">
+                    {project.liveUrl && (
+                      <span
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          window.open(project.liveUrl, '_blank', 'noopener,noreferrer');
+                        }}
+                        className="text-[#C1512F] hover:text-[#1A1512] transition-colors cursor-pointer flex items-center gap-1"
+                        title="Open live website in new tab"
+                      >
+                        LIVE ↗
+                      </span>
+                    )}
+                    <span className="text-[#1A1512] group-hover:text-[#C1512F] flex items-center gap-1 transition-colors">
+                      CASE STUDY <span className="font-sans font-bold">→</span>
+                    </span>
+                  </div>
                 </div>
               </div>
             </Link>

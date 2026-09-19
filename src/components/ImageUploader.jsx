@@ -130,7 +130,8 @@ export default function ImageUploader({
               alt="Uploaded high-quality preview"
               className="w-full h-full object-cover"
             />
-            <div className="absolute inset-0 bg-[#1A1512]/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2.5 p-4">
+            {/* Quick hover overlay */}
+            <div className="absolute inset-0 bg-[#1A1512]/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-4">
               <button
                 type="button"
                 onClick={() => setIsEditorOpen(true)}
@@ -158,30 +159,40 @@ export default function ImageUploader({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-[#1A1512]/70 pt-1">
-            <div className="flex items-center gap-2">
-              <span className="px-1.5 py-0.5 bg-[#1A1512] text-white font-bold uppercase">
-                {uploadMeta?.storage || 'STORED ASSET'}
-              </span>
-              {uploadMeta?.size && <span>{uploadMeta.size}</span>}
-            </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setIsEditorOpen(true)}
-                className="text-[#C1512F] hover:underline font-bold flex items-center gap-1 cursor-pointer"
-              >
-                <Crop className="w-3.5 h-3.5" />
-                <span>SCALE & FILTERS</span>
-              </button>
+          {/* Always Visible High-Contrast Action Toolbar */}
+          <div className="pt-2 border-t border-[#1A1512]/10 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="text-[#1A1512] hover:text-[#C1512F] font-bold underline cursor-pointer"
+                className="px-3 py-1.5 bg-[#1A1512] text-white hover:bg-[#C1512F] font-bold text-[10px] tracking-widest uppercase transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                REPLACE FILE
+                <RefreshCw className="w-3 h-3" />
+                <span>CHANGE / UPLOAD NEW</span>
               </button>
+              <button
+                type="button"
+                onClick={() => setIsEditorOpen(true)}
+                className="px-3 py-1.5 border border-[#1A1512]/30 hover:border-[#1A1512] hover:bg-[#1A1512]/5 font-bold text-[10px] tracking-widest uppercase transition-colors flex items-center gap-1.5 cursor-pointer text-[#1A1512]"
+              >
+                <Crop className="w-3 h-3 text-[#C1512F]" />
+                <span>CROP & FILTERS</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => triggerChange('')}
+                className="px-2.5 py-1.5 border border-[#C1512F]/30 text-[#C1512F] hover:bg-[#C1512F] hover:text-white font-bold text-[10px] tracking-widest uppercase transition-colors flex items-center gap-1 cursor-pointer"
+              >
+                <X className="w-3 h-3" />
+                <span>REMOVE</span>
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2 text-[10px] text-[#1A1512]/60">
+              <span className="px-1.5 py-0.5 bg-[#1A1512]/10 text-[#1A1512] font-bold uppercase">
+                {uploadMeta?.storage || 'STORED ASSET'}
+              </span>
+              {uploadMeta?.size && <span>{uploadMeta.size}</span>}
             </div>
           </div>
         </div>
