@@ -410,23 +410,10 @@ export default function AdminAuthGate() {
 
               {/* Password Input */}
               <div className="space-y-2">
-                <div className="flex flex-wrap items-center justify-between gap-1">
-                  <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#F0EBE1]/80 flex items-center gap-1.5">
-                    <Lock className="w-3.5 h-3.5 text-[#C1512F]" />
-                    <span>MASTER PASSKEY</span>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStep('setPassword');
-                      setErrorMessage(null);
-                      setSuccessMessage('Create your master passkey below.');
-                    }}
-                    className="text-[10px] font-mono text-[#C1512F] hover:underline font-bold tracking-wider uppercase cursor-pointer"
-                  >
-                    FIRST TIME? SET PASSKEY
-                  </button>
-                </div>
+                <label className="text-[11px] font-mono font-bold uppercase tracking-wider text-[#F0EBE1]/80 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-[#C1512F]" />
+                  <span>MASTER PASSKEY</span>
+                </label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'}

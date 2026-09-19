@@ -10,7 +10,8 @@
     "start": "npm start --prefix server",
     "build": "npm run build --prefix client",
     "build:client": "npm run build --prefix client",
-    "install:all": "npm install && npm install --prefix client && npm install --prefix server"
+    "install:all": "npm install && npm install --prefix client && npm install --prefix server",
+    "init:db": "node server/scripts/createCollection.js"
   },
   "devDependencies": {
     "concurrently": "^9.2.4"

@@ -16,6 +16,8 @@ services:
         sync: false
       - key: JWT_SECRET
         sync: false
+      - key: DB_NAME
+        value: WebReve_DB
       - key: RESEND_API_KEY
         sync: false
 
@@ -34,7 +36,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        fromService:
-          type: web
-          name: webreve-server
-          property: host
+        value: https://webreve-server.onrender.com
