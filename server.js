@@ -2,10 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import multer from 'multer';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { MongoClient, GridFSBucket, ObjectId } from 'mongodb';
 import { Readable } from 'stream';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { projects as defaultProjects } from './src/data/projects.js';
 
 dotenv.config();
 
@@ -43,6 +46,7 @@ let connectionError = null;
 const localAdminUsers = new Map();
 const localConversations = new Map();
 const localMessages = new Map();
+const localProjects = new Map(defaultProjects.map((p, idx) => [p.id, { ...p, order: idx + 1 }]));
 
 // Helper: Escape HTML
 function escapeHtml(str) {
@@ -150,6 +154,20 @@ async function initCollectionsAndIndexes() {
       await db.collection('messages').createIndex({ conversationId: 1 });
       await db.collection('messages').createIndex({ id: 1 }, { unique: true });
       await db.collection('inquiries').createIndex({ id: 1 }, { unique: true });
+      await db.collection('projects').createIndex({ id: 1 }, { unique: true });
+
+      // Seed default projects into MongoDB if empty
+      const existingProjectsCount = await db.collection('projects').countDocuments({ deletedAt: { $exists: false } });
+      if (existingProjectsCount === 0) {
+        const initialDocs = defaultProjects.map((p, idx) => ({
+          ...p,
+          order: idx + 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }));
+        await db.collection('projects').insertMany(initialDocs);
+        console.log(`📦 Seeded ${initialDocs.length} initial projects into MongoDB.`);
+      }
 
       // Seed default admin accounts if missing
       for (const email of ALLOWED_ADMIN_EMAILS) {
@@ -1214,6 +1232,148 @@ app.get('/api/images/:id', async (req, res) => {
     console.error("Error retrieving image from GridFS:", error);
     res.status(500).json({ error: "Failed to fetch image from database", details: error.message });
   }
+});
+
+// -----------------------------------------------------------------------------
+// PROJECTS API (MongoDB Powered)
+// -----------------------------------------------------------------------------
+
+// 1. Get All Projects (Public)
+app.get('/api/projects', async (req, res) => {
+  try {
+    if (isConnected && db) {
+      const projectsList = await db.collection('projects')
+        .find({ deletedAt: { $exists: false } })
+        .sort({ order: 1, createdAt: 1 })
+        .toArray();
+      return res.json({ success: true, projects: projectsList });
+    } else {
+      const list = Array.from(localProjects.values()).filter((p) => !p.deletedAt);
+      return res.json({ success: true, projects: list.length > 0 ? list : defaultProjects });
+    }
+  } catch (err) {
+    console.error('Fetch projects error:', err);
+    res.status(500).json({ error: 'Failed to fetch projects.', details: err.message });
+  }
+});
+
+// 2. Get Single Project by ID (Public)
+app.get('/api/projects/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (isConnected && db) {
+      const project = await db.collection('projects').findOne({
+        id,
+        deletedAt: { $exists: false }
+      });
+      if (project) {
+        return res.json({ success: true, project });
+      }
+      return res.status(404).json({ error: 'Project not found.' });
+    } else {
+      const match = localProjects.get(id) || defaultProjects.find((p) => p.id === id);
+      if (match && !match.deletedAt) return res.json({ success: true, project: match });
+      return res.status(404).json({ error: 'Project not found.' });
+    }
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch project.', details: err.message });
+  }
+});
+
+// 3. Create Project (Admin Protected)
+const handleCreateProject = async (req, res) => {
+  try {
+    const projectData = req.body;
+    const projectId = projectData.id || `proj-${Date.now()}`;
+    const nowIso = new Date().toISOString();
+
+    const newProject = {
+      ...projectData,
+      id: projectId,
+      createdAt: nowIso,
+      updatedAt: nowIso
+    };
+
+    if (isConnected && db) {
+      await db.collection('projects').insertOne(newProject);
+    }
+    localProjects.set(projectId, newProject);
+
+    console.log(`✨ Created project in MongoDB: ${newProject.title} (${projectId})`);
+    res.json({ success: true, project: newProject });
+  } catch (err) {
+    console.error('Create project error:', err);
+    res.status(500).json({ error: 'Failed to create project.', details: err.message });
+  }
+};
+app.post('/api/admin/projects', authenticateAdmin, handleCreateProject);
+app.post('/api/projects', authenticateAdmin, handleCreateProject);
+
+// 4. Update Project (Admin Protected)
+const handleUpdateProject = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const updatedFields = req.body;
+    const nowIso = new Date().toISOString();
+
+    if (isConnected && db) {
+      await db.collection('projects').updateOne(
+        { id },
+        { $set: { ...updatedFields, updatedAt: nowIso } }
+      );
+    }
+    const current = localProjects.get(id) || {};
+    localProjects.set(id, { ...current, ...updatedFields, updatedAt: nowIso });
+
+    console.log(`📝 Updated project in MongoDB: ${id}`);
+    res.json({ success: true, message: 'Project updated successfully.' });
+  } catch (err) {
+    console.error('Update project error:', err);
+    res.status(500).json({ error: 'Failed to update project.', details: err.message });
+  }
+};
+app.put('/api/admin/projects/:id', authenticateAdmin, handleUpdateProject);
+app.put('/api/projects/:id', authenticateAdmin, handleUpdateProject);
+
+// 5. Delete Project (Admin Protected)
+const handleDeleteProject = async (req, res) => {
+  try {
+    const { id } = req.params;
+    if (isConnected && db) {
+      await db.collection('projects').deleteOne({ id });
+    }
+    localProjects.delete(id);
+
+    console.log(`🗑️ Permanently deleted project from MongoDB: ${id}`);
+    res.json({ success: true, message: 'Project deleted successfully.' });
+  } catch (err) {
+    console.error('Delete project error:', err);
+    res.status(500).json({ error: 'Failed to delete project.', details: err.message });
+  }
+};
+app.delete('/api/admin/projects/:id', authenticateAdmin, handleDeleteProject);
+app.delete('/api/projects/:id', authenticateAdmin, handleDeleteProject);
+
+// -----------------------------------------------------------------------------
+// SERVE STATIC PRODUCTION FRONTEND (Vite dist/ & SPA Routing)
+// -----------------------------------------------------------------------------
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const distPath = path.join(__dirname, 'dist');
+
+app.use(express.static(distPath));
+
+// Catch-all route to serve index.html for React Router client-side routes (/admin, /work/1, etc.)
+app.use((req, res, next) => {
+  if (req.method === 'GET' && !req.path.startsWith('/api')) {
+    const indexPath = path.join(distPath, 'index.html');
+    return res.sendFile(indexPath, (err) => {
+      if (err) {
+        res.status(404).send('WebRêve: Frontend bundle not found. Please run "npm run build".');
+      }
+    });
+  }
+  next();
 });
 
 // Start Server (only if not running inside a serverless handler or imported by Vercel)

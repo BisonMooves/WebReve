@@ -322,8 +322,31 @@ export function AdminProvider({ children }) {
     }
   };
 
-  // Project CRUD Actions
-  const addProject = (projectData) => {
+  // Fetch Projects from Server / Database
+  const fetchProjects = useCallback(async () => {
+    try {
+      const res = await fetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.projects) {
+          setProjects(data.projects);
+          try {
+            localStorage.setItem('webreve_projects', JSON.stringify(data.projects));
+          } catch {}
+        }
+      }
+    } catch (err) {
+      console.warn('Using local projects fallback:', err.message);
+    }
+  }, []);
+
+  // Initial projects fetch
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
+
+  // Project CRUD Actions (MongoDB Connected)
+  const addProject = async (projectData) => {
     const newProject = {
       ...projectData,
       id: projectData.id || `proj-${Date.now()}`,
@@ -344,18 +367,71 @@ export function AdminProvider({ children }) {
       ] : []),
       metrics: projectData.metrics || [{ label: "Conversion Rate", value: "+120%" }]
     };
-    setProjects((prev) => [newProject, ...prev]);
+
+    setProjects((prev) => {
+      const updated = [newProject, ...prev];
+      try {
+        localStorage.setItem('webreve_projects', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await fetch('/api/admin/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify(newProject)
+      });
+    } catch (err) {
+      console.warn('Network error saving project to server:', err);
+    }
+
     return newProject;
   };
 
-  const updateProject = (id, updatedFields) => {
-    setProjects((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, ...updatedFields } : p))
-    );
+  const updateProject = async (id, updatedFields) => {
+    setProjects((prev) => {
+      const updated = prev.map((p) => (p.id === id ? { ...p, ...updatedFields } : p));
+      try {
+        localStorage.setItem('webreve_projects', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await fetch(`/api/admin/projects/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeader()
+        },
+        body: JSON.stringify(updatedFields)
+      });
+    } catch (err) {
+      console.warn('Network error updating project on server:', err);
+    }
   };
 
-  const deleteProject = (id) => {
-    setProjects((prev) => prev.filter((p) => p.id !== id));
+  const deleteProject = async (id) => {
+    setProjects((prev) => {
+      const updated = prev.filter((p) => p.id !== id);
+      try {
+        localStorage.setItem('webreve_projects', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    try {
+      await fetch(`/api/admin/projects/${id}`, {
+        method: 'DELETE',
+        headers: { ...getAuthHeader() }
+      });
+    } catch (err) {
+      console.warn('Network error deleting project on server:', err);
+    }
   };
 
   // Delete / Soft-Delete Conversation
@@ -502,6 +578,7 @@ export function AdminProvider({ children }) {
         unreadConversationsCount,
         stats,
         fetchStats,
+        fetchProjects,
         fetchConversations,
         fetchConversationById,
         sendMessage,
