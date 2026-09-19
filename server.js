@@ -920,33 +920,92 @@ app.patch('/api/admin/conversations/:id', authenticateAdmin, async (req, res) =>
   }
 });
 
-// 5. Delete / Soft-Delete Conversation
+// 5. Delete Conversation / Lead (Permanent removal from all collections)
 app.delete('/api/admin/conversations/:id', authenticateAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const nowIso = new Date().toISOString();
+    const possibleIds = [
+      String(id),
+      String(id).replace('inq-', 'conv-'),
+      String(id).replace('conv-', 'inq-')
+    ];
 
     if (isConnected && db) {
-      await db.collection('conversations').updateOne(
-        { id },
-        { $set: { deletedAt: nowIso } }
-      );
-      await db.collection('messages').updateMany(
-        { conversationId: id },
-        { $set: { deletedAt: nowIso } }
-      );
-    } else {
-      const conv = localConversations.get(id);
-      if (conv) {
-        localConversations.set(id, { ...conv, deletedAt: nowIso });
+      await db.collection('conversations').deleteMany({
+        $or: [
+          { id: { $in: possibleIds } },
+          { _id: id }
+        ]
+      });
+      await db.collection('messages').deleteMany({
+        conversationId: { $in: possibleIds }
+      });
+      await db.collection('inquiries').deleteMany({
+        $or: [
+          { id: { $in: possibleIds } },
+          { _id: id }
+        ]
+      });
+    }
+
+    // Also remove from local in-memory fallback store
+    possibleIds.forEach((pid) => {
+      localConversations.delete(pid);
+    });
+    for (const [msgId, msg] of localMessages.entries()) {
+      if (possibleIds.includes(msg.conversationId)) {
+        localMessages.delete(msgId);
       }
     }
 
-    console.log(`🗑️ Conversation soft-deleted: ${id}`);
+    console.log(`🗑️ Conversation permanently deleted: ${id}`);
     res.json({ success: true, message: 'Conversation deleted successfully.' });
   } catch (err) {
     console.error('Delete conversation error:', err);
     res.status(500).json({ error: 'Failed to delete conversation.', details: err.message });
+  }
+});
+
+// Also support DELETE /api/inquiries/:id
+app.delete('/api/inquiries/:id', authenticateAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const possibleIds = [
+      String(id),
+      String(id).replace('inq-', 'conv-'),
+      String(id).replace('conv-', 'inq-')
+    ];
+
+    if (isConnected && db) {
+      await db.collection('conversations').deleteMany({
+        $or: [
+          { id: { $in: possibleIds } },
+          { _id: id }
+        ]
+      });
+      await db.collection('messages').deleteMany({
+        conversationId: { $in: possibleIds }
+      });
+      await db.collection('inquiries').deleteMany({
+        $or: [
+          { id: { $in: possibleIds } },
+          { _id: id }
+        ]
+      });
+    }
+
+    possibleIds.forEach((pid) => {
+      localConversations.delete(pid);
+    });
+    for (const [msgId, msg] of localMessages.entries()) {
+      if (possibleIds.includes(msg.conversationId)) {
+        localMessages.delete(msgId);
+      }
+    }
+
+    res.json({ success: true, message: 'Inquiry deleted successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to delete inquiry.', details: err.message });
   }
 });
 

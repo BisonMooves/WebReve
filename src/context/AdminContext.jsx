@@ -360,21 +360,39 @@ export function AdminProvider({ children }) {
 
   // Delete / Soft-Delete Conversation
   const deleteConversation = async (id) => {
+    if (!id) return { success: false };
+    const possibleIds = [
+      String(id),
+      String(id).replace('inq-', 'conv-'),
+      String(id).replace('conv-', 'inq-')
+    ];
+
+    // 1. Optimistically remove from state and localStorage immediately
+    setConversations((prev) => {
+      const filtered = prev.filter((c) => !possibleIds.includes(String(c.id)));
+      try {
+        localStorage.setItem('webreve_conversations', JSON.stringify(filtered));
+      } catch {}
+      return filtered;
+    });
+
+    if (activeThread && possibleIds.includes(String(activeThread.conversation?.id))) {
+      setActiveThread(null);
+    }
+
+    // 2. Dispatch to backend API
     try {
-      const res = await fetch(`/api/admin/conversations/${id}`, {
+      await fetch(`/api/admin/conversations/${id}`, {
         method: 'DELETE',
         headers: { ...getAuthHeader() }
       });
-      if (!res.ok) {
-        console.warn('Server delete returned non-ok status');
-      }
+      await fetch(`/api/inquiries/${id}`, {
+        method: 'DELETE',
+        headers: { ...getAuthHeader() }
+      }).catch(() => {});
     } catch (err) {
       console.warn('Network error during delete:', err);
     } finally {
-      setConversations((prev) => prev.filter((c) => c.id !== id));
-      if (activeThread && activeThread.conversation?.id === id) {
-        setActiveThread(null);
-      }
       fetchStats();
     }
     return { success: true };

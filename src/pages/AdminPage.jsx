@@ -1088,6 +1088,20 @@ export default function AdminPage() {
                               </select>
                               <ChevronDown className="w-3.5 h-3.5 text-[#1A1512] absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
                             </div>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (window.confirm(`Delete thread with ${activeThread.conversation.name}?`)) {
+                                  deleteConversation(activeThread.conversation.id);
+                                  showToast('Thread deleted.');
+                                }
+                              }}
+                              className="p-1 border border-[#1A1512]/20 hover:bg-[#C1512F] hover:text-white hover:border-[#C1512F] transition-colors cursor-pointer inline-flex items-center justify-center ml-1"
+                              title="Delete Thread"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           </div>
                         </div>
 
@@ -1530,13 +1544,15 @@ export default function AdminPage() {
                               OPEN THREAD
                             </button>
                             <button
-                              onClick={() => {
-                                if (window.confirm(`Delete conversation with ${inq.name}? This will remove all associated messages.`)) {
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (window.confirm(`Delete lead/conversation with ${inq.name}? This will remove all associated messages.`)) {
                                   deleteConversation(inq.id);
                                   showToast('Conversation deleted.');
                                 }
                               }}
-                              className="p-1 border border-[#1A1512]/20 hover:bg-[#C1512F] hover:text-white hover:border-[#C1512F] text-[10px] transition-colors cursor-pointer"
+                              className="p-1 border border-[#1A1512]/20 hover:bg-[#C1512F] hover:text-white hover:border-[#C1512F] text-[10px] transition-colors cursor-pointer inline-flex items-center justify-center"
                               title="Delete conversation"
                             >
                               <Trash2 className="w-3 h-3" />
