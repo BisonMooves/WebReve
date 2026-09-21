@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAdminData } from '../context/AdminContext';
@@ -179,7 +180,7 @@ export default function AdminPage() {
     tagline: '',
     liveUrl: '',
     deliverables: ["UX Strategy", "Bespoke Design", "React Build"],
-    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop',
+    image: '',
     problemTitle: 'OVERCOMING CONVERSION FRICTION & BRAND APATHY',
     problem: '',
     solutionTitle: 'BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING',
@@ -310,45 +311,37 @@ export default function AdminPage() {
       category: conv.plan === 'Static Launch' ? 'Luxury & Brand' : 'SaaS & AI',
       result: '+140% Conversion',
       tagline: `Bespoke digital architecture engineered for ${conv.name}.`,
-      image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop',
+      image: '',
       problem: `Prospect initiated inquiry with ${conv.plan} (Estimate: ₹${(conv.total || 0).toLocaleString()}).`,
       solution: 'Engineered high-converting React application with ultra-responsive UX flows.',
       metric1Label: 'Conversion Uplift',
       metric1Val: '+140%',
       metric2Label: 'Launch Speed',
       metric2Val: '14 Days',
-      galleryItems: createDefaultGalleryItems(conv.name)
+      galleryItems: []
     });
     setActiveTab('projects');
     setIsProjectModalOpen(true);
     showToast('Pre-populated new project from lead details.');
   };
 
-  // Gallery Item Template Generator
-  const createDefaultGalleryItems = (title = "Platform Overview", coverImg = "") => [
-    {
-      id: `frame-${Date.now()}-1`,
-      title: `${title || 'Platform'} · Hero Workspace`,
-      cat: "Desktop",
-      kind: "desktop",
-      tone: "ink",
-      c: 8,
-      r: 4,
-      src: coverImg || "",
-      note: "Primary headline and instant 1-click booking flow above the fold."
-    },
-    {
-      id: `frame-${Date.now()}-2`,
-      title: "Mobile Responsive Flow",
-      cat: "Mobile",
-      kind: "mobile",
-      tone: "rust",
-      c: 4,
-      r: 4,
-      src: "",
-      note: "Optimized gesture navigation with sub-second touch feedback."
-    }
-  ];
+  // Gallery Item Template Generator: only create items if a real image is provided
+  const createDefaultGalleryItems = (title = "Platform Overview", coverImg = "") => {
+    if (!coverImg || !coverImg.trim()) return [];
+    return [
+      {
+        id: `frame-${Date.now()}-1`,
+        title: `${title || 'Platform'} · Platform Overview`,
+        cat: "Desktop",
+        kind: "desktop",
+        tone: "ink",
+        c: 8,
+        r: 4,
+        src: coverImg.trim(),
+        note: "Primary headline and interface flow."
+      }
+    ];
+  };
 
   // Gallery Management Helpers
   const handleAddBlankGalleryItem = () => {
@@ -510,14 +503,12 @@ export default function AdminPage() {
         metric1Val: proj.metrics?.[0]?.value || '+120%',
         metric2Label: proj.metrics?.[1]?.label || 'New ARR',
         metric2Val: proj.metrics?.[1]?.value || '$4.2M',
-        galleryItems: proj.galleryItems || createDefaultGalleryItems(proj.title, proj.image)
+        galleryItems: proj.galleryItems || []
       });
     } else {
       setEditingProject(null);
       setIsCustomCategory(false);
       setCustomCategoryVal('');
-      const defaultTitle = 'New Client Platform';
-      const defaultImg = 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop';
       setProjectForm({
         title: '',
         client: '',
@@ -526,7 +517,7 @@ export default function AdminPage() {
         tagline: '',
         liveUrl: '',
         deliverables: ["UX Strategy", "Bespoke Design", "React Build"],
-        image: defaultImg,
+        image: '',
         problemTitle: 'OVERCOMING CONVERSION FRICTION & BRAND APATHY',
         problem: '',
         solutionTitle: 'BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING',
@@ -535,7 +526,7 @@ export default function AdminPage() {
         metric1Val: '+120%',
         metric2Label: 'New ARR',
         metric2Val: '$4.2M',
-        galleryItems: createDefaultGalleryItems(defaultTitle, defaultImg)
+        galleryItems: []
       });
     }
     setProjectModalTab('metadata');
@@ -563,7 +554,7 @@ export default function AdminPage() {
         { label: projectForm.metric1Label, value: projectForm.metric1Val },
         { label: projectForm.metric2Label, value: projectForm.metric2Val }
       ],
-      galleryItems: projectForm.galleryItems
+      galleryItems: (projectForm.galleryItems || []).filter(item => item && item.src && String(item.src).trim())
     };
 
     if (editingProject) {

@@ -1,96 +1,32 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { X, ArrowLeft, ArrowRight } from "lucide-react";
 import { resolveImageUrl } from "../config/api";
+import { useModalRegistration } from "../context/ModalContext";
 
 /* ------------------------------------------------------------------
-   PROJECT GALLERY  ·  Webreve case-study page
-   - Bento grid with mixed frame sizes
+   PROJECT GALLERY  ·  WebRêve case-study page
+   - Bento grid with real uploaded images (no fake wireframe SVGs)
    - Filter chips (All / Desktop / Mobile / Details)
-   - Cursor-following "View" bubble on hover
-   - Lightbox with keyboard nav (← → Esc) and a filmstrip
+   - Cursor-following "VIEW" bubble on hover
+   - Lightbox with portal mounting, visible Close button, backdrop close, and Esc
 ------------------------------------------------------------------- */
-
-const DEFAULT_ITEMS = [
-  { title: "Homepage hero", cat: "Desktop", kind: "desktop", tone: "ink", c: 8, r: 4, src: "",
-    note: "One headline and one booking action, visible without scrolling." },
-  { title: "Booking flow", cat: "Mobile", kind: "mobile", tone: "rust", c: 4, r: 4, src: "",
-    note: "Pickup, drop-off and price on a single thumb-friendly screen." },
-  { title: "Shipment tracking card", cat: "Details", kind: "detail", tone: "paper", c: 4, r: 3, src: "",
-    note: "Live status shown as a simple line with three stops." },
-  { title: "Quote form", cat: "Details", kind: "detail", tone: "ink", c: 4, r: 3, src: "",
-    note: "Five fields down to two, with the price updating as you type." },
-  { title: "Order status", cat: "Mobile", kind: "mobile", tone: "paper", c: 4, r: 3, src: "",
-    note: "Customers see where the vehicle is without calling anyone." },
-  { title: "Operations dashboard", cat: "Desktop", kind: "desktop", tone: "paper", c: 7, r: 4, src: "",
-    note: "Every active job in one table, sortable by delay." },
-  { title: "Colour and type", cat: "Details", kind: "system", tone: "rust", c: 5, r: 4, src: "",
-    note: "A small palette and two typefaces, used the same way on every page." },
-];
 
 const pad = (n) => String(n).padStart(2, "0");
 
-/* ---------- placeholder wireframes (used when `src` is empty) ---------- */
-function Mock({ kind }) {
-  if (kind === "desktop")
-    return (
-      <svg className="pg-mock" viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-        <rect width="160" height="9" fill="var(--fg)" opacity=".12" />
-        <circle cx="6" cy="4.5" r="1.4" fill="var(--fg)" opacity=".5" />
-        <circle cx="11" cy="4.5" r="1.4" fill="var(--fg)" opacity=".5" />
-        <circle cx="16" cy="4.5" r="1.4" fill="var(--fg)" opacity=".5" />
-        <rect x="52" y="3" width="56" height="3" rx="1.5" fill="var(--fg)" opacity=".2" />
-        <rect x="12" y="24" width="90" height="12" fill="var(--fg)" />
-        <rect x="12" y="40" width="64" height="12" fill="var(--fg)" />
-        <rect x="12" y="58" width="52" height="3" fill="var(--fg)" opacity=".45" />
-        <rect x="12" y="65" width="40" height="3" fill="var(--fg)" opacity=".45" />
-        <rect x="12" y="76" width="34" height="10" fill="var(--ac)" />
-        <rect x="112" y="20" width="36" height="66" fill="var(--fg)" opacity=".1" />
-        <rect x="118" y="26" width="24" height="24" fill="var(--ac)" />
-        <rect x="118" y="56" width="24" height="3" fill="var(--fg)" opacity=".5" />
-        <rect x="118" y="63" width="16" height="3" fill="var(--fg)" opacity=".5" />
-      </svg>
-    );
-  if (kind === "mobile")
-    return (
-      <svg className="pg-mock" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <rect x="30" y="6" width="40" height="88" rx="6" fill="none" stroke="var(--fg)" strokeWidth="1.2" />
-        <rect x="44" y="10" width="12" height="2" rx="1" fill="var(--fg)" opacity=".4" />
-        <rect x="35" y="22" width="26" height="6" fill="var(--fg)" />
-        <rect x="35" y="30" width="18" height="6" fill="var(--fg)" />
-        <rect x="35" y="42" width="30" height="14" fill="var(--fg)" opacity=".12" />
-        <rect x="35" y="60" width="30" height="3" fill="var(--fg)" opacity=".35" />
-        <rect x="35" y="66" width="22" height="3" fill="var(--fg)" opacity=".35" />
-        <rect x="35" y="80" width="30" height="9" fill="var(--ac)" />
-      </svg>
-    );
-  if (kind === "detail")
-    return (
-      <svg className="pg-mock" viewBox="0 0 100 70" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-        <rect x="12" y="10" width="76" height="50" fill="none" stroke="var(--fg)" strokeWidth="1" />
-        <rect x="18" y="16" width="22" height="6" fill="none" stroke="var(--fg)" strokeWidth=".8" opacity=".6" />
-        <rect x="44" y="16" width="26" height="6" fill="none" stroke="var(--fg)" strokeWidth=".8" opacity=".6" />
-        <line x1="20" y1="40" x2="80" y2="40" stroke="var(--fg)" opacity=".35" />
-        <line x1="20" y1="40" x2="56" y2="40" stroke="var(--ac)" strokeWidth="2" />
-        <circle cx="20" cy="40" r="3" fill="var(--fg)" />
-        <circle cx="56" cy="40" r="4" fill="var(--ac)" />
-        <circle cx="80" cy="40" r="3" fill="none" stroke="var(--fg)" />
-        <rect x="18" y="50" width="28" height="3" fill="var(--fg)" opacity=".6" />
-      </svg>
-    );
-  return (
-    <svg className="pg-mock" viewBox="0 0 100 70" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-      <text x="12" y="40" fontSize="36" fill="var(--fg)" style={{ fontFamily: "var(--font-display)" }}>Aa</text>
-      {["#171412", "#B5432A", "#ECE7DD", "#6B645B"].map((c, i) => (
-        <rect key={c} x={12 + i * 18} y="48" width="14" height="14" fill={c} stroke="var(--fg)" strokeOpacity=".35" strokeWidth=".6" />
-      ))}
-    </svg>
-  );
-}
-
 function Art({ item, fit = "cover" }) {
-  return item.src ? (
-    <img src={resolveImageUrl(item.src)} alt={item.title} loading="lazy" style={{ objectFit: fit }} />
-  ) : (
-    <Mock kind={item.kind} />
+  if (!item?.src) return null;
+  return (
+    <img
+      src={resolveImageUrl(item.src)}
+      alt={item.title || "Showcase screen"}
+      loading="lazy"
+      style={{ objectFit: fit }}
+      onError={(e) => {
+        // Hide broken image placeholder
+        e.currentTarget.style.opacity = '0';
+      }}
+    />
   );
 }
 
@@ -98,23 +34,25 @@ function Art({ item, fit = "cover" }) {
 function Tile({ item, onOpen }) {
   const ref = useRef(null);
   const move = (e) => {
+    if (!ref.current) return;
     const b = ref.current.getBoundingClientRect();
     ref.current.style.setProperty("--x", e.clientX - b.left + "px");
     ref.current.style.setProperty("--y", e.clientY - b.top + "px");
   };
+
   return (
     <button
       ref={ref}
-      className={`pg-tile tone-${item.tone}`}
-      style={{ "--c": item.c, "--r": item.r }}
+      className={`pg-tile tone-${item.tone || 'ink'}`}
+      style={{ "--c": item.c || 6, "--r": item.r || 4 }}
       onMouseMove={move}
       onClick={onOpen}
       aria-label={`Open ${item.title}`}
     >
       <span className="pg-art"><Art item={item} /></span>
-      <span className="pg-bubble" aria-hidden="true">View</span>
+      <span className="pg-bubble" aria-hidden="true">VIEW</span>
       <span className="pg-cap">
-        <span className="pg-fig">Fig. {pad(item.fig)}</span>
+        <span className="pg-fig">FIG. {pad(item.fig)}</span>
         <span className="pg-ttl">{item.title}</span>
         <span className="pg-cat">{item.cat}</span>
       </span>
@@ -126,6 +64,9 @@ function Tile({ item, onOpen }) {
 function Lightbox({ items, index, onClose, onGo }) {
   const item = items[index];
   const closeRef = useRef(null);
+
+  // Register with ModalContext for Android hardware back button
+  useModalRegistration(true, onClose, 'gallery-lightbox-modal');
 
   useEffect(() => {
     const prevFocus = document.activeElement;
@@ -148,38 +89,103 @@ function Lightbox({ items, index, onClose, onGo }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [index, items.length, onClose, onGo]);
 
+  if (!item) return null;
+
   return (
-    <div className="pg-lb" role="dialog" aria-modal="true" aria-label={item.title}>
+    <div
+      className="pg-lb"
+      role="dialog"
+      aria-modal="true"
+      aria-label={item.title}
+      onClick={(e) => {
+        // Exit preview when clicking background outside the stage or nav
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      {/* Top Header Bar */}
       <div className="pg-lb-top">
-        <span className="pg-lb-count">{pad(index + 1)} / {pad(items.length)}</span>
-        <span className="pg-lb-title">{item.title}</span>
-        <button ref={closeRef} className="pg-lb-close" onClick={onClose}>Close</button>
+        <div className="flex items-center gap-3">
+          <span className="pg-lb-count">{pad(index + 1)} / {pad(items.length)}</span>
+          <span className="text-[10px] text-[#C1512F] uppercase font-bold tracking-wider px-2 py-0.5 border border-[#C1512F]/30 bg-[#C1512F]/10">
+            {item.cat || 'SHOWCASE'}
+          </span>
+        </div>
+        <span className="pg-lb-title truncate max-w-md hidden sm:inline">{item.title}</span>
+
+        {/* High-visibility Close Button with icon and keyboard hint */}
+        <button
+          ref={closeRef}
+          className="pg-lb-close"
+          onClick={onClose}
+          aria-label="Close preview"
+        >
+          <X className="w-4 h-4" />
+          <span>CLOSE PREVIEW</span>
+          <span className="text-[9px] opacity-70 hidden md:inline">[ESC]</span>
+        </button>
       </div>
 
-      <div className="pg-lb-main">
-        <button className="pg-lb-nav" onClick={() => onGo((index - 1 + items.length) % items.length)} aria-label="Previous">←</button>
-        <div key={item.fig} className={`pg-stage tone-${item.tone}`}>
+      {/* Main Preview Stage */}
+      <div
+        className="pg-lb-main"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        {items.length > 1 && (
+          <button
+            className="pg-lb-nav"
+            onClick={(e) => {
+              e.stopPropagation();
+              onGo((index - 1 + items.length) % items.length);
+            }}
+            aria-label="Previous image"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+        )}
+
+        <div key={item.id || item.fig || index} className={`pg-stage tone-${item.tone || 'ink'}`}>
           <Art item={item} fit="contain" />
         </div>
-        <button className="pg-lb-nav" onClick={() => onGo((index + 1) % items.length)} aria-label="Next">→</button>
+
+        {items.length > 1 && (
+          <button
+            className="pg-lb-nav"
+            onClick={(e) => {
+              e.stopPropagation();
+              onGo((index + 1) % items.length);
+            }}
+            aria-label="Next image"
+          >
+            <ArrowRight className="w-5 h-5" />
+          </button>
+        )}
       </div>
 
+      {/* Bottom bar with note and filmstrip */}
       <div className="pg-lb-bottom">
-        <p className="pg-lb-note">{item.note}</p>
-        <div className="pg-strip" role="tablist" aria-label="All screens">
-          {items.map((it, i) => (
-            <button
-              key={it.fig}
-              role="tab"
-              aria-selected={i === index}
-              aria-label={it.title}
-              className={`pg-thumb tone-${it.tone} ${i === index ? "on" : ""}`}
-              onClick={() => onGo(i)}
-            >
-              <Art item={it} />
-            </button>
-          ))}
+        <div className="space-y-1 max-w-xl">
+          <div className="font-mono text-xs font-bold text-white uppercase">{item.title}</div>
+          {item.note && <p className="pg-lb-note">{item.note}</p>}
         </div>
+
+        {items.length > 1 && (
+          <div className="pg-strip" role="tablist" aria-label="All screens">
+            {items.map((it, i) => (
+              <button
+                key={it.id || it.fig || i}
+                role="tab"
+                aria-selected={i === index}
+                aria-label={it.title}
+                className={`pg-thumb tone-${it.tone || 'ink'} ${i === index ? "on" : ""}`}
+                onClick={() => onGo(i)}
+              >
+                <Art item={it} />
+              </button>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -193,100 +199,100 @@ export default function ProjectGallery({
   title = "Screens from the build",
   intro = "Select any frame to see it full size.",
 }) {
-  // If project is provided, prioritize project.galleryItems, or construct fallback
-  const galleryItems = items || (project?.galleryItems && project.galleryItems.length > 0 ? project.galleryItems : project ? [
-    {
-      id: "f-1",
-      title: `${project.title} · Platform Overview`,
-      cat: "Desktop",
-      kind: "desktop",
-      tone: "ink",
-      c: 8,
-      r: 4,
-      src: project.image || "",
-      note: project.tagline || "One headline and one clear booking action, visible without scrolling."
-    },
-    {
-      id: "f-2",
-      title: "Mobile responsive flow",
-      cat: "Mobile",
-      kind: "mobile",
-      tone: "rust",
-      c: 4,
-      r: 4,
-      src: project.mockups?.[1] || "",
-      note: "Streamlined input and instant pricing on a single thumb-friendly screen."
-    },
-    {
-      id: "f-3",
-      title: "Real-time tracking & state card",
-      cat: "Details",
-      kind: "detail",
-      tone: "paper",
-      c: 4,
-      r: 3,
-      src: project.mockups?.[2] || "",
-      note: "Live status displayed through high-velocity status pipelines."
-    },
-    {
-      id: "f-4",
-      title: "Interactive quote calculator",
-      cat: "Details",
-      kind: "detail",
-      tone: "ink",
-      c: 4,
-      r: 3,
-      src: "",
-      note: "Simplified multi-step calculations with dynamic real-time price updates."
-    },
-    {
-      id: "f-5",
-      title: "Customer dispatch status",
-      cat: "Mobile",
-      kind: "mobile",
-      tone: "paper",
-      c: 4,
-      r: 3,
-      src: "",
-      note: "Self-service client transparency without support overhead."
-    },
-    {
-      id: "f-6",
-      title: "Operations management console",
-      cat: "Desktop",
-      kind: "desktop",
-      tone: "paper",
-      c: 7,
-      r: 4,
-      src: "",
-      note: "High-density active monitoring console, sortable by priority."
-    },
-    {
-      id: "f-7",
-      title: "Design tokens & type system",
-      cat: "Details",
-      kind: "system",
-      tone: "rust",
-      c: 5,
-      r: 4,
-      src: "",
-      note: "Editorial color palette and typographic hierarchy applied consistently."
-    },
-  ] : DEFAULT_ITEMS);
-
-  const all = galleryItems.map((it, i) => ({ ...it, fig: i + 1 }));
-  const cats = ["All", ...new Set(all.map((i) => i.cat || "Details"))];
-  const [cat, setCat] = useState("All");
   const [open, setOpen] = useState(null);
+  const [cat, setCat] = useState("All");
 
-  const filtered = cat === "All" ? all : all.filter((i) => (i.cat || "Details") === cat);
-  // In a filtered view the mixed sizes are replaced by an even row so there are no gaps
+  // Collect ONLY real images that have actually been uploaded or added
+  const realImages = [];
+
+  // Helper to check if an image is real and not a default placeholder
+  const isRealImage = (src) => {
+    if (!src || typeof src !== 'string') return false;
+    const trimmed = src.trim();
+    return trimmed.length > 0 && !trimmed.includes('photo-1618005182384-a83a8bd57fbe');
+  };
+
+  // 1. If explicit items prop passed with valid real image src:
+  if (Array.isArray(items)) {
+    items.forEach((it, idx) => {
+      if (isRealImage(it?.src)) {
+        realImages.push({
+          id: it.id || `item-${idx + 1}`,
+          title: it.title || `Screen ${idx + 1}`,
+          cat: it.cat || 'Desktop',
+          tone: it.tone || 'ink',
+          c: Number(it.c) || 6,
+          r: Number(it.r) || 4,
+          src: it.src.trim(),
+          note: it.note || ''
+        });
+      }
+    });
+  }
+
+  // 2. Project galleryItems if added
+  if (Array.isArray(project?.galleryItems)) {
+    project.galleryItems.forEach((it, idx) => {
+      if (isRealImage(it?.src) && !realImages.some(r => r.src === it.src.trim())) {
+        realImages.push({
+          id: it.id || `gal-${idx + 1}`,
+          title: it.title || `${project.title || 'Screen'} ${idx + 1}`,
+          cat: it.cat || 'Desktop',
+          tone: it.tone || (idx % 2 === 0 ? 'ink' : 'rust'),
+          c: Number(it.c) || 6,
+          r: Number(it.r) || 4,
+          src: it.src.trim(),
+          note: it.note || project.tagline || ''
+        });
+      }
+    });
+  }
+
+  // 3. Fallback to project.image ONLY if it is a real uploaded image (no mockups, no placeholders)
+  if (realImages.length === 0 && isRealImage(project?.image)) {
+    realImages.push({
+      id: 'main-cover-preview',
+      title: `${project.title} · Platform Overview`,
+      cat: 'Desktop',
+      tone: 'ink',
+      c: 12,
+      r: 5,
+      src: project.image.trim(),
+      note: project.tagline || `${project.title} digital platform build.`
+    });
+  }
+
+  // If no images have been added at all, do not render default wireframe mockups
+  if (realImages.length === 0) {
+    return null;
+  }
+
+  // Layout assignment for Bento tiles
+  const formatted = realImages.map((it, idx) => {
+    let c = it.c || 6;
+    let r = it.r || 4;
+    if (realImages.length === 1) {
+      c = 12;
+      r = 5;
+    } else if (realImages.length === 2) {
+      c = 6;
+      r = 4;
+    } else if (realImages.length === 3) {
+      if (idx === 0) { c = 8; r = 4; }
+      else if (idx === 1) { c = 4; r = 4; }
+      else { c = 12; r = 4; }
+    }
+    return { ...it, c, r, fig: idx + 1 };
+  });
+
+  const categories = ["All", ...new Set(formatted.map((i) => i.cat || "Desktop"))];
+  const filtered = cat === "All" ? formatted : formatted.filter((i) => (i.cat || "Desktop") === cat);
   const visible =
     cat === "All"
       ? filtered
       : filtered.map((i) => ({ ...i, c: filtered.length === 1 ? 12 : filtered.length === 2 ? 6 : 4, r: 4 }));
 
-  const close = useCallback(() => setOpen(null), [setOpen]);
+  const close = useCallback(() => setOpen(null), []);
 
   return (
     <section className="pg clear-both block w-full relative z-10">
@@ -299,29 +305,37 @@ export default function ProjectGallery({
             <p className="pg-intro">{intro}</p>
           </div>
 
-          <div className="pg-filters" role="group" aria-label="Filter screens">
-            {cats.map((c) => (
-              <button
-                key={c}
-                className={`pg-chip ${c === cat ? "on" : ""}`}
-                aria-pressed={c === cat}
-                onClick={() => setCat(c)}
-              >
-                {c}
-                <span>{c === "All" ? all.length : all.filter((i) => (i.cat || "Details") === c).length}</span>
-              </button>
-            ))}
-          </div>
+          {categories.length > 2 && (
+            <div className="pg-filters" role="group" aria-label="Filter screens">
+              {categories.map((c) => (
+                <button
+                  key={c}
+                  className={`pg-chip ${c === cat ? "on" : ""}`}
+                  aria-pressed={c === cat}
+                  onClick={() => setCat(c)}
+                >
+                  {c}
+                  <span>{c === "All" ? formatted.length : formatted.filter((i) => (i.cat || "Desktop") === c).length}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </header>
 
         <div className="pg-grid">
           {visible.map((it, i) => (
-            <Tile key={it.id || it.fig} item={it} onOpen={() => setOpen(i)} />
+            <Tile key={it.id || it.fig || i} item={it} onOpen={() => setOpen(i)} />
           ))}
         </div>
       </div>
 
-      {open !== null && <Lightbox items={visible} index={open} onClose={close} onGo={setOpen} />}
+      {/* Render Lightbox modal through React Portal directly to document.body */}
+      {open !== null &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <Lightbox items={visible} index={open} onClose={close} onGo={setOpen} />,
+          document.body
+        )}
     </section>
   );
 }
@@ -392,7 +406,7 @@ const CSS = `
 /* bento grid */
 .pg-grid {
   display: grid; grid-template-columns: repeat(12, 1fr);
-  grid-auto-rows: 96px; grid-auto-flow: dense; gap: 14px;
+  grid-auto-rows: 100px; grid-auto-flow: dense; gap: 14px;
 }
 .pg-tile {
   position: relative; overflow: hidden; padding: 0; cursor: pointer;
@@ -401,10 +415,8 @@ const CSS = `
   border: 1px solid var(--ink);
   text-align: left; font: inherit;
 }
-.pg-art { position: absolute; inset: 0 0 38px 0; display: block; overflow: hidden; }
-.pg-art img, .pg-mock { width: 100%; height: 100%; display: block; }
-.pg-art img { transition: transform .5s cubic-bezier(.2,.7,.2,1); object-fit: cover; }
-.pg-mock { transition: transform .5s cubic-bezier(.2,.7,.2,1); }
+.pg-art { position: absolute; inset: 0 0 38px 0; display: block; overflow: hidden; background: rgba(26, 21, 18, 0.05); }
+.pg-art img { width: 100%; height: 100%; display: block; object-fit: cover; transition: transform .5s cubic-bezier(.2,.7,.2,1); }
 
 /* caption strip */
 .pg-cap {
@@ -431,58 +443,70 @@ const CSS = `
 }
 @media (hover: hover) {
   .pg-tile:hover .pg-bubble { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  .pg-tile:hover .pg-art img, .pg-tile:hover .pg-mock { transform: scale(1.03); }
+  .pg-tile:hover .pg-art img { transform: scale(1.03); }
 }
 
-/* lightbox */
+/* lightbox overlay (mounted at document root via portal) */
 .pg-lb {
-  position: fixed; inset: 0; z-index: 1000;
-  background: rgba(23, 20, 18, .97); color: var(--paper);
-  display: flex; flex-direction: column; padding: 20px 28px 24px; gap: 18px;
-  animation: pg-lb-in .22s ease;
+  position: fixed; inset: 0; z-index: 99999;
+  background: rgba(18, 14, 12, 0.98); color: var(--paper);
+  display: flex; flex-direction: column; padding: 20px 28px 24px; gap: 16px;
+  animation: pg-lb-in .2s ease;
+  backdrop-filter: blur(16px);
 }
-@keyframes pg-lb-in { from { opacity: 0; } to { opacity: 1; } }
-.pg-lb-top { display: flex; align-items: center; gap: 20px; font: 400 12px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; }
-.pg-lb-count { color: var(--rust); font-weight: 700; }
-.pg-lb-title { flex: 1; font-weight: 700; }
+@keyframes pg-lb-in { from { opacity: 0; transform: scale(.99); } to { opacity: 1; transform: scale(1); } }
+.pg-lb-top {
+  display: flex; align-items: center; justify-content: space-between; gap: 20px;
+  font: 700 12px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase;
+  border-bottom: 1px solid rgba(236, 231, 221, 0.12);
+  padding-bottom: 12px;
+}
+.pg-lb-count { color: var(--rust); font-weight: 700; font-size: 13px; }
+.pg-lb-title { font-weight: 700; letter-spacing: .08em; }
 .pg-lb-close {
-  background: var(--paper); color: var(--ink); border: 0; cursor: pointer;
-  padding: 11px 16px; font: 700 12px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase;
-  transition: background .18s, color .18s;
+  background: var(--rust); color: #FFFFFF; border: 1px solid var(--rust); cursor: pointer;
+  padding: 10px 18px; font: 700 11px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase;
+  transition: all .18s; display: inline-flex; align-items: center; gap: 8px;
+  box-shadow: 0 4px 14px rgba(193, 81, 47, 0.4);
 }
-.pg-lb-close:hover { background: var(--rust); color: var(--paper); }
-.pg-lb-main { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 20px; }
+.pg-lb-close:hover { background: #FFFFFF; color: #1A1512; border-color: #FFFFFF; }
+.pg-lb-main { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; gap: 20px; position: relative; }
 .pg-lb-nav {
-  flex: none; width: 48px; height: 48px; cursor: pointer;
-  background: transparent; color: var(--paper); border: 1px solid rgba(236, 231, 221, .3);
-  font: 400 20px/1 var(--font-mono); transition: background .18s, border-color .18s;
+  flex: none; width: 50px; height: 50px; cursor: pointer; border-radius: 0;
+  background: rgba(26, 21, 18, 0.7); color: var(--paper); border: 1px solid rgba(236, 231, 221, .3);
+  display: flex; align-items: center; justify-content: center;
+  transition: background .18s, border-color .18s, color .18s;
+  z-index: 10;
 }
-.pg-lb-nav:hover { background: var(--rust); border-color: var(--rust); }
+.pg-lb-nav:hover { background: var(--rust); border-color: var(--rust); color: #FFFFFF; }
 .pg-stage {
-  position: relative; background: var(--bg); border: 1px solid rgba(236, 231, 221, .25);
+  position: relative; background: rgba(0, 0, 0, 0.5); border: 1px solid rgba(236, 231, 221, .2);
   aspect-ratio: 16 / 10; height: 100%; max-height: 100%; max-width: 100%;
-  animation: pg-lb-swap .25s ease;
+  animation: pg-lb-swap .2s ease; display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
 }
-@keyframes pg-lb-swap { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-.pg-stage img, .pg-stage .pg-mock { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+@keyframes pg-lb-swap { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.pg-stage img { width: 100%; height: 100%; object-fit: contain; }
 .pg-lb-bottom { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
-.pg-lb-note { margin: 0; max-width: 46ch; font: 400 18px/1.5 var(--font-serif); color: rgba(236, 231, 221, .8); }
-.pg-strip { display: flex; gap: 8px; overflow-x: auto; max-width: 100%; }
+.pg-lb-note { margin: 0; font: 400 15px/1.5 var(--font-serif); color: rgba(236, 231, 221, .85); }
+.pg-strip { display: flex; gap: 8px; overflow-x: auto; max-width: 100%; padding-bottom: 4px; }
 .pg-thumb {
-  width: 64px; height: 42px; padding: 0; cursor: pointer; position: relative; overflow: hidden;
+  width: 68px; height: 44px; padding: 0; cursor: pointer; position: relative; overflow: hidden;
   background: var(--bg); border: 1px solid rgba(236, 231, 221, .25); opacity: .5;
-  transition: opacity .18s, border-color .18s; flex-shrink: 0;
+  transition: opacity .18s, border-color .18s, transform .15s; flex-shrink: 0;
 }
-.pg-thumb:hover { opacity: .85; }
-.pg-thumb.on { opacity: 1; border-color: var(--rust); }
-.pg-thumb img, .pg-thumb .pg-mock { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.pg-thumb:hover { opacity: .9; transform: scale(1.04); }
+.pg-thumb.on { opacity: 1; border-color: var(--rust); box-shadow: 0 0 0 1px var(--rust); }
+.pg-thumb img { width: 100%; height: 100%; object-fit: cover; }
 
 /* small screens */
 @media (max-width: 760px) {
   .pg { padding: 56px 0; }
   .pg-grid { grid-auto-rows: 72px; }
   .pg-tile { grid-column: span 12; grid-row: span 4; }
-  .pg-lb { padding: 14px; }
+  .pg-lb { padding: 14px 12px; }
+  .pg-lb-top { padding-bottom: 10px; }
+  .pg-lb-close { padding: 8px 12px; font-size: 11px; }
   .pg-lb-nav { display: none; }
   .pg-stage { height: auto; width: 100%; }
   .pg-thumb { width: 48px; height: 32px; }

@@ -48,8 +48,8 @@ export function formatProjectDoc(data, existing = null) {
           : (existing?.deliverables || ["UX Strategy", "Bespoke Design", "React Build"])),
     image: data.image || existing?.image || '',
     mockups: Array.isArray(data.mockups)
-      ? data.mockups
-      : (existing?.mockups || (data.image ? [data.image] : [])),
+      ? data.mockups.filter(m => typeof m === 'string' && m.trim() && !m.includes('photo-1618005182384-a83a8bd57fbe'))
+      : [],
     galleryItems,
     problemTitle: (data.problemTitle !== undefined ? data.problemTitle : (existing?.problemTitle || 'OVERCOMING CONVERSION FRICTION & BRAND APATHY')).trim(),
     problem: (data.problem || existing?.problem || '').trim(),
