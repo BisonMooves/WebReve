@@ -170,6 +170,7 @@ export default function AdminPage() {
   const [isProjectModalOpen, setIsProjectModalOpen] = useState(false);
   const [projectModalTab, setProjectModalTab] = useState('metadata'); // 'metadata' | 'gallery'
   const [editingProject, setEditingProject] = useState(null);
+  const [newDeliverableInput, setNewDeliverableInput] = useState('');
   const [projectForm, setProjectForm] = useState({
     title: '',
     client: '',
@@ -177,8 +178,11 @@ export default function AdminPage() {
     result: '+120% Conversion',
     tagline: '',
     liveUrl: '',
+    deliverables: ["UX Strategy", "Bespoke Design", "React Build"],
     image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1200&auto=format&fit=crop',
+    problemTitle: 'OVERCOMING CONVERSION FRICTION & BRAND APATHY',
     problem: '',
+    solutionTitle: 'BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING',
     solution: '',
     metric1Label: 'Conversion Uplift',
     metric1Val: '+120%',
@@ -458,8 +462,29 @@ export default function AdminPage() {
     }
   };
 
+  // Deliverable Tags Management
+  const handleAddDeliverable = (tagToAdd = null) => {
+    const val = (tagToAdd !== null ? tagToAdd : newDeliverableInput).trim();
+    if (!val) return;
+    if (!(projectForm.deliverables || []).some(d => d.toLowerCase() === val.toLowerCase())) {
+      setProjectForm(prev => ({
+        ...prev,
+        deliverables: [...(prev.deliverables || []), val]
+      }));
+    }
+    setNewDeliverableInput('');
+  };
+
+  const handleRemoveDeliverable = (indexToRemove) => {
+    setProjectForm(prev => ({
+      ...prev,
+      deliverables: (prev.deliverables || []).filter((_, idx) => idx !== indexToRemove)
+    }));
+  };
+
   // Open Project Modal
   const openProjectModal = (proj = null) => {
+    setNewDeliverableInput('');
     if (proj) {
       setEditingProject(proj);
       const isCustom = !standardCategories.includes(proj.category);
@@ -473,8 +498,13 @@ export default function AdminPage() {
         result: proj.result || '+120% Conversion',
         tagline: proj.tagline || '',
         liveUrl: proj.liveUrl || '',
+        deliverables: Array.isArray(proj.deliverables) && proj.deliverables.length > 0
+          ? proj.deliverables
+          : ["UX Strategy", "Bespoke Design", "React Build"],
         image: proj.image || '',
+        problemTitle: proj.problemTitle || 'OVERCOMING CONVERSION FRICTION & BRAND APATHY',
         problem: proj.problem || '',
+        solutionTitle: proj.solutionTitle || 'BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING',
         solution: proj.solution || '',
         metric1Label: proj.metrics?.[0]?.label || 'Conversion Uplift',
         metric1Val: proj.metrics?.[0]?.value || '+120%',
@@ -495,8 +525,11 @@ export default function AdminPage() {
         result: '+120% Conversion',
         tagline: '',
         liveUrl: '',
+        deliverables: ["UX Strategy", "Bespoke Design", "React Build"],
         image: defaultImg,
+        problemTitle: 'OVERCOMING CONVERSION FRICTION & BRAND APATHY',
         problem: '',
+        solutionTitle: 'BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING',
         solution: '',
         metric1Label: 'Conversion Uplift',
         metric1Val: '+120%',
@@ -520,8 +553,11 @@ export default function AdminPage() {
       result: projectForm.result,
       tagline: projectForm.tagline || 'Bespoke high-performance digital build.',
       liveUrl: projectForm.liveUrl?.trim() || '',
+      deliverables: (projectForm.deliverables || []).map(d => String(d).trim()).filter(Boolean),
       image: projectForm.image,
+      problemTitle: projectForm.problemTitle?.trim() || 'OVERCOMING CONVERSION FRICTION & BRAND APATHY',
       problem: projectForm.problem || 'Legacy user experience and low conversion efficiency.',
+      solutionTitle: projectForm.solutionTitle?.trim() || 'BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING',
       solution: projectForm.solution || 'Re-architected UX flow and ultra-fast visual presentation.',
       metrics: [
         { label: projectForm.metric1Label, value: projectForm.metric1Val },
@@ -2180,6 +2216,94 @@ export default function AdminPage() {
                     </div>
                   </div>
 
+                  {/* Services Delivered (Deliverables Tags) */}
+                  <div className="space-y-2 p-3 bg-[#E8E2D7]/60 border border-[#1A1512]/15">
+                    <div className="flex items-center justify-between">
+                      <label className="font-bold text-[#1A1512]/80 uppercase tracking-wider flex items-center gap-1.5">
+                        <span>SERVICES DELIVERED</span>
+                        <span className="text-[10px] text-[#1A1512]/50 font-normal">({projectForm.deliverables?.length || 0} TAGS)</span>
+                      </label>
+                      <span className="text-[10px] text-[#1A1512]/60">Shown on Case Study Detail Page</span>
+                    </div>
+
+                    {/* Current Tag Badges */}
+                    <div className="flex flex-wrap gap-1.5 min-h-[36px] p-2 bg-[#F0EBE1] border border-[#1A1512]/20 items-center">
+                      {(!projectForm.deliverables || projectForm.deliverables.length === 0) ? (
+                        <span className="text-[11px] text-[#1A1512]/40 italic">No services added yet. Type below or click a preset to add.</span>
+                      ) : (
+                        projectForm.deliverables.map((del, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#1A1512]/10 border border-[#1A1512]/20 font-mono text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-[#1A1512]"
+                          >
+                            <span>{del}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveDeliverable(idx)}
+                              className="text-[#1A1512]/50 hover:text-[#C1512F] cursor-pointer p-0.5"
+                              title="Remove tag"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </span>
+                        ))
+                      )}
+                    </div>
+
+                    {/* Add Custom Deliverable Input */}
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={newDeliverableInput}
+                        onChange={(e) => setNewDeliverableInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleAddDeliverable();
+                          }
+                        }}
+                        placeholder="Add service tag (e.g. UX Strategy, React Build, SEO Optimization)..."
+                        className="flex-1 px-3 py-1.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none focus:border-[#1A1512] font-mono text-xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleAddDeliverable()}
+                        className="px-3 py-1.5 bg-[#1A1512] text-white hover:bg-[#C1512F] font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer shrink-0"
+                      >
+                        + ADD TAG
+                      </button>
+                    </div>
+
+                    {/* Quick Presets */}
+                    <div className="flex flex-wrap items-center gap-1 pt-1">
+                      <span className="text-[9px] text-[#1A1512]/50 uppercase font-bold tracking-wider mr-1">QUICK PRESETS:</span>
+                      {[
+                        'UX Strategy',
+                        'Bespoke Design',
+                        'React Build',
+                        'Dark Minimalist UI/UX',
+                        'Speed & Conversion Optimization',
+                        'Custom Interactive Flows',
+                        'Brand Architecture',
+                        'Mobile App Build'
+                      ].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          onClick={() => handleAddDeliverable(preset)}
+                          disabled={(projectForm.deliverables || []).includes(preset)}
+                          className={`px-2 py-0.5 text-[9px] font-mono font-bold uppercase transition-colors cursor-pointer border ${
+                            (projectForm.deliverables || []).includes(preset)
+                              ? 'border-[#1A1512]/10 text-[#1A1512]/30 cursor-not-allowed bg-transparent'
+                              : 'border-[#1A1512]/20 bg-[#F0EBE1] hover:bg-[#1A1512] hover:text-white text-[#1A1512]'
+                          }`}
+                        >
+                          + {preset}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
                   {/* Primary Cover Image */}
                   <div className="space-y-2 pt-2 border-t border-[#1A1512]/15">
                     <div className="flex items-center justify-between">
@@ -2435,30 +2559,56 @@ export default function AdminPage() {
               {/* TAB 3: METRICS & STORY */}
               {projectModalTab === 'story' && (
                 <div className="space-y-4">
-                  <div className="space-y-1">
-                    <label className="font-bold text-[#1A1512]/70 uppercase">
+                  <div className="space-y-2 p-3 bg-[#E8E2D7]/50 border border-[#1A1512]/15">
+                    <label className="font-bold text-[#1A1512]/80 uppercase tracking-wider block">
                       01 / THE STRATEGIC CHALLENGE (PROBLEM)
                     </label>
-                    <textarea
-                      rows={3}
-                      value={projectForm.problem}
-                      onChange={(e) => setProjectForm({ ...projectForm, problem: e.target.value })}
-                      placeholder="Describe the client's previous obstacles, user friction, or legacy constraints..."
-                      className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-sans text-xs resize-none"
-                    />
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-[#1A1512]/60 uppercase font-bold">CHALLENGE HEADLINE (HERO TITLE)</span>
+                      <input
+                        type="text"
+                        value={projectForm.problemTitle}
+                        onChange={(e) => setProjectForm({ ...projectForm, problemTitle: e.target.value })}
+                        placeholder="e.g. OVERCOMING CONVERSION FRICTION & BRAND APATHY"
+                        className="w-full p-2 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-display text-sm font-bold uppercase tracking-tight"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-[#1A1512]/60 uppercase font-bold">CHALLENGE NARRATIVE (DESCRIPTION)</span>
+                      <textarea
+                        rows={3}
+                        value={projectForm.problem}
+                        onChange={(e) => setProjectForm({ ...projectForm, problem: e.target.value })}
+                        placeholder="Describe the client's previous obstacles, user friction, or legacy constraints..."
+                        className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-sans text-xs resize-none"
+                      />
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="font-bold text-[#1A1512]/70 uppercase">
+                  <div className="space-y-2 p-3 bg-[#E8E2D7]/50 border border-[#1A1512]/15">
+                    <label className="font-bold text-[#1A1512]/80 uppercase tracking-wider block">
                       02 / THE ARCHITECTURAL SOLUTION
                     </label>
-                    <textarea
-                      rows={3}
-                      value={projectForm.solution}
-                      onChange={(e) => setProjectForm({ ...projectForm, solution: e.target.value })}
-                      placeholder="Describe the technical implementation, UX flows, and performance engineering delivered..."
-                      className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-sans text-xs resize-none"
-                    />
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-[#1A1512]/60 uppercase font-bold">SOLUTION HEADLINE (HERO TITLE)</span>
+                      <input
+                        type="text"
+                        value={projectForm.solutionTitle}
+                        onChange={(e) => setProjectForm({ ...projectForm, solutionTitle: e.target.value })}
+                        placeholder="e.g. BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING"
+                        className="w-full p-2 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-display text-sm font-bold uppercase tracking-tight"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-[#1A1512]/60 uppercase font-bold">SOLUTION NARRATIVE (DESCRIPTION)</span>
+                      <textarea
+                        rows={3}
+                        value={projectForm.solution}
+                        onChange={(e) => setProjectForm({ ...projectForm, solution: e.target.value })}
+                        placeholder="Describe the technical implementation, UX flows, and performance engineering delivered..."
+                        className="w-full p-2.5 border border-[#1A1512]/20 bg-[#F0EBE1] focus:outline-none font-sans text-xs resize-none"
+                      />
+                    </div>
                   </div>
 
                   <div className="pt-2 border-t border-[#1A1512]/15 space-y-3">

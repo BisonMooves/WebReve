@@ -42,14 +42,18 @@ export function formatProjectDoc(data, existing = null) {
     roiLabel: (data.roiLabel || existing?.roiLabel || '').trim(),
     liveUrl: (data.liveUrl || existing?.liveUrl || '').trim(),
     deliverables: Array.isArray(data.deliverables)
-      ? data.deliverables
-      : (existing?.deliverables || ["UX Strategy", "Bespoke Design", "React Build"]),
+      ? data.deliverables.map(d => String(d).trim()).filter(Boolean)
+      : (typeof data.deliverables === 'string'
+          ? data.deliverables.split(',').map(d => d.trim()).filter(Boolean)
+          : (existing?.deliverables || ["UX Strategy", "Bespoke Design", "React Build"])),
     image: data.image || existing?.image || '',
     mockups: Array.isArray(data.mockups)
       ? data.mockups
       : (existing?.mockups || (data.image ? [data.image] : [])),
     galleryItems,
+    problemTitle: (data.problemTitle !== undefined ? data.problemTitle : (existing?.problemTitle || 'OVERCOMING CONVERSION FRICTION & BRAND APATHY')).trim(),
     problem: (data.problem || existing?.problem || '').trim(),
+    solutionTitle: (data.solutionTitle !== undefined ? data.solutionTitle : (existing?.solutionTitle || 'BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING')).trim(),
     solution: (data.solution || existing?.solution || '').trim(),
     metrics,
     quote: data.quote ? {

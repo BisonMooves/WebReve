@@ -86,17 +86,37 @@ export default function ProjectModal({ project, onClose }) {
               ))}
             </div>
 
+            {/* Deliverables Badges */}
+            {project.deliverables && project.deliverables.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                {project.deliverables.map((del, i) => (
+                  <span
+                    key={i}
+                    className="px-2 py-0.5 bg-[#1A1512]/5 border border-[#1A1512]/15 font-mono text-[10px] uppercase tracking-wider text-[#1A1512]/80"
+                  >
+                    {del}
+                  </span>
+                ))}
+              </div>
+            )}
+
             {/* Challenge & Solution */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 border-t border-[#1A1512]/15 pt-6 sm:pt-8">
               <div className="space-y-2">
                 <span className="font-mono text-xs font-bold tracking-widest text-[#C1512F] uppercase">• THE CHALLENGE</span>
+                <h4 className="font-display text-lg sm:text-xl font-bold uppercase text-[#1A1512]">
+                  {project.problemTitle || "OVERCOMING CONVERSION FRICTION & BRAND APATHY"}
+                </h4>
                 <p className="text-xs sm:text-sm text-[#1A1512]/80 leading-relaxed font-sans">
                   {project.problem}
                 </p>
               </div>
 
               <div className="space-y-2">
-                <span className="font-mono text-xs font-bold tracking-widest text-[#1A1512] uppercase">• THE STRATEGY & BUILD</span>
+                <span className="font-mono text-xs font-bold tracking-widest text-[#1A1512] uppercase">• THE ARCHITECTURAL SOLUTION</span>
+                <h4 className="font-display text-lg sm:text-xl font-bold uppercase text-[#1A1512]">
+                  {project.solutionTitle || "BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING"}
+                </h4>
                 <p className="text-xs sm:text-sm text-[#1A1512]/80 leading-relaxed font-sans">
                   {project.solution}
                 </p>

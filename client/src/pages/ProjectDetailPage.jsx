@@ -227,17 +227,19 @@ export default function ProjectDetailPage() {
                 )}
 
                 <div>
-                  <span className="text-[#1A1512]/50 text-[10px] uppercase block">SERVICES DELIVERED</span>
+                  <span className="text-[#1A1512]/50 text-[10px] uppercase block font-mono tracking-wider">SERVICES DELIVERED</span>
                   <div className="flex flex-wrap gap-1.5 pt-1.5">
-                    {(project.deliverables || [
-                      "Full-Stack React Architecture",
-                      "Dark Minimalist UI/UX",
-                      "Speed & Conversion Optimization",
-                      "Custom Interactive Flows"
-                    ]).map((del, idx) => (
+                    {(project.deliverables && project.deliverables.length > 0
+                      ? project.deliverables
+                      : [
+                          "UX Strategy",
+                          "Bespoke Design",
+                          "React Build"
+                        ]
+                    ).map((del, idx) => (
                       <span
                         key={idx}
-                        className="px-2 py-0.5 bg-[#1A1512]/5 border border-[#1A1512]/10 text-[10px] sm:text-[11px]"
+                        className="px-2.5 py-1 bg-[#1A1512]/5 border border-[#1A1512]/15 text-[10px] sm:text-[11px] font-mono uppercase tracking-wider text-[#1A1512]"
                       >
                         {del}
                       </span>
@@ -268,7 +270,7 @@ export default function ProjectDetailPage() {
                 <span>01 / THE STRATEGIC CHALLENGE</span>
               </div>
               <h2 className="font-display text-2xl sm:text-4xl font-extrabold uppercase tracking-tight text-[#1A1512]">
-                OVERCOMING CONVERSION FRICTION & BRAND APATHY
+                {project.problemTitle || "OVERCOMING CONVERSION FRICTION & BRAND APATHY"}
               </h2>
               <p className="text-sm sm:text-base md:text-lg text-[#1A1512]/80 font-sans leading-relaxed">
                 {project.problem ||
@@ -283,7 +285,7 @@ export default function ProjectDetailPage() {
                 <span>02 / THE ARCHITECTURAL SOLUTION</span>
               </div>
               <h2 className="font-display text-2xl sm:text-4xl font-extrabold uppercase tracking-tight text-[#1A1512]">
-                BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING
+                {project.solutionTitle || "BESPOKE INTERACTION DESIGN & HIGH-VELOCITY ENGINEERING"}
               </h2>
               <p className="text-sm sm:text-base md:text-lg text-[#1A1512]/80 font-sans leading-relaxed">
                 {project.solution ||
