@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useAdminData } from '../context/AdminContext';
+import { resolveImageUrl } from '../config/api';
 
 export default function PortfolioSection() {
   const { projects } = useAdminData();
@@ -40,7 +41,7 @@ export default function PortfolioSection() {
                 {/* Image Container with Sharp Corners */}
                 <div className="relative aspect-[16/10] overflow-hidden bg-[#1A1512]/5 border-b border-[#1A1512]/15">
                   <img
-                    src={project.image}
+                    src={resolveImageUrl(project.image)}
                     alt={`${project.title} - ${project.category} case study`}
                     loading="lazy"
                     decoding="async"

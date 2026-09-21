@@ -38,10 +38,42 @@ const ALLOWED_ADMIN_EMAILS = [
   'aman27pvt@gmail.com'
 ];
 
-// Enable JSON & CORS (Allow cross-origin requests from separate client host)
+// Allowed CORS Origins for Web Client, Android WebView, and Custom Domain
+const ALLOWED_ORIGINS = [
+  'https://webreve-client.onrender.com',
+  'https://webreve.design',
+  'https://localhost',
+  'capacitor://localhost',
+  'http://localhost:5173',
+  'http://localhost:5001',
+  'http://localhost:3000'
+];
+
+if (process.env.CLIENT_URL) {
+  ALLOWED_ORIGINS.push(process.env.CLIENT_URL.trim().replace(/\/$/, ''));
+}
+
+// Enable JSON & CORS (Allow cross-origin requests from separate client host & Android WebView)
 app.use(cors({
-  origin: true,
-  credentials: true
+  origin: function (origin, callback) {
+    // Allow requests with no origin (e.g. mobile WebViews, native requests, Postman)
+    if (!origin) return callback(null, true);
+
+    if (ALLOWED_ORIGINS.includes(origin) || origin.startsWith('https://localhost')) {
+      return callback(null, true);
+    }
+
+    // Allow Render PR preview branches and custom client subdomains
+    if (/^https:\/\/webreve-client.*\.onrender\.com$/.test(origin)) {
+      return callback(null, true);
+    }
+
+    console.warn(`[CORS Blocked] Origin: ${origin}`);
+    return callback(new Error(`Origin ${origin} not allowed by CORS`));
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin']
 }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));

@@ -11,7 +11,11 @@
     "build": "npm run build --prefix client",
     "build:client": "npm run build --prefix client",
     "install:all": "npm install && npm install --prefix client && npm install --prefix server",
-    "init:db": "node server/scripts/createCollection.js"
+    "init:db": "node server/scripts/createCollection.js",
+    "mobile:sync": "npm run android:sync --prefix client",
+    "mobile:apk": "npm run android:apk --prefix client",
+    "mobile:run": "npm --prefix client exec cap run android",
+    "mobile:open": "npm --prefix client exec cap open android"
   },
   "devDependencies": {
     "concurrently": "^9.2.4"

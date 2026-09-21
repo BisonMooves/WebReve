@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { resolveImageUrl } from "../config/api";
 
 /* ------------------------------------------------------------------
    PROJECT GALLERY  ·  Webreve case-study page
@@ -87,7 +88,7 @@ function Mock({ kind }) {
 
 function Art({ item, fit = "cover" }) {
   return item.src ? (
-    <img src={item.src} alt={item.title} loading="lazy" style={{ objectFit: fit }} />
+    <img src={resolveImageUrl(item.src)} alt={item.title} loading="lazy" style={{ objectFit: fit }} />
   ) : (
     <Mock kind={item.kind} />
   );

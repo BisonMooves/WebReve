@@ -14,7 +14,7 @@ export default function Footer() {
   ];
 
   return (
-    <footer className="bg-[#F0EBE1] text-[#1A1512] border-t border-[#1A1512]/15 py-8 sm:py-12 px-4 sm:px-6 md:px-12 font-mono text-xs">
+    <footer className="bg-[#F0EBE1] text-[#1A1512] border-t border-[#1A1512]/15 pt-8 sm:pt-12 pb-[max(2rem,calc(2rem+env(safe-area-inset-bottom,0px)))] px-4 sm:px-6 md:px-12 font-mono text-xs">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-baseline justify-between gap-6">
         
         <div className="space-y-1.5 sm:space-y-2">

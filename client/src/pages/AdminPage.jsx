@@ -4,7 +4,7 @@ import { useAdminData } from '../context/AdminContext';
 import { useAuth } from '../context/AuthContext';
 import AdminAuthGate from '../components/AdminAuthGate';
 import ImageUploader from '../components/ImageUploader';
-import { apiUrl } from '../config/api';
+import { apiUrl, resolveImageUrl } from '../config/api';
 import {
   LayoutDashboard,
   FolderKanban,
@@ -1564,7 +1564,7 @@ export default function AdminPage() {
                     >
                       <div className="relative aspect-[16/9] overflow-hidden bg-[#1A1512]/5 border-b border-[#1A1512]/15">
                         <img
-                          src={project.image}
+                          src={resolveImageUrl(project.image)}
                           alt={project.title}
                           className="w-full h-full object-cover"
                         />
@@ -1791,7 +1791,7 @@ export default function AdminPage() {
                     <div className="pt-4 border-t border-[#1A1512]/15 flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5 min-w-0">
                         <img
-                          src={testi.avatar}
+                          src={resolveImageUrl(testi.avatar)}
                           alt={testi.author}
                           className="w-8 sm:w-9 h-8 sm:h-9 object-cover border border-[#1A1512] shrink-0"
                         />
@@ -2327,7 +2327,7 @@ export default function AdminPage() {
                                 <div className="relative aspect-[16/10] w-full bg-[#1A1512]/10 overflow-hidden border border-[#1A1512]/20">
                                   {item.src ? (
                                     <img
-                                      src={item.src}
+                                      src={resolveImageUrl(item.src)}
                                       alt={item.title}
                                       className="w-full h-full object-cover"
                                     />

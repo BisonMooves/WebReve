@@ -19,7 +19,8 @@ import {
   Contrast,
   Palette
 } from 'lucide-react';
-import { apiUrl } from '../config/api';
+import { apiUrl, resolveImageUrl } from '../config/api';
+import { useModalRegistration } from '../context/ModalContext';
 
 const PRESETS = [
   { name: 'NATURAL', brightness: 100, contrast: 100, saturation: 100, sepia: 0 },
@@ -39,6 +40,7 @@ const ASPECT_RATIOS = [
 ];
 
 export default function ImageEditorModal({ imageUrl, onSave, onClose }) {
+  useModalRegistration(Boolean(imageUrl), onClose, 'image-editor-modal');
   const [activeTab, setActiveTab] = useState('transform'); // 'transform' | 'adjust' | 'presets'
   
   // Transform State
@@ -134,7 +136,7 @@ export default function ImageEditorModal({ imageUrl, onSave, onClose }) {
     try {
       const img = new Image();
       img.crossOrigin = 'anonymous';
-      img.src = imageUrl;
+      img.src = resolveImageUrl(imageUrl);
 
       await new Promise((resolve, reject) => {
         img.onload = resolve;
@@ -293,7 +295,7 @@ export default function ImageEditorModal({ imageUrl, onSave, onClose }) {
               {/* Image with live transforms & filters */}
               <img
                 ref={imageRef}
-                src={imageUrl}
+                src={resolveImageUrl(imageUrl)}
                 alt="Studio adjust preview"
                 draggable={false}
                 style={{

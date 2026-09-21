@@ -1,8 +1,11 @@
 import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
+import { resolveImageUrl } from '../config/api';
+import { useModalRegistration } from '../context/ModalContext';
 
 export default function ProjectModal({ project, onClose }) {
+  useModalRegistration(Boolean(project), onClose, 'project-modal');
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') onClose();
@@ -107,7 +110,7 @@ export default function ProjectModal({ project, onClose }) {
                 {project.mockups.map((imgUrl, i) => (
                   <div key={i} className="aspect-video md:aspect-square overflow-hidden border border-[#1A1512]/15 bg-[#1A1512]/5">
                     <img
-                      src={imgUrl}
+                      src={resolveImageUrl(imgUrl)}
                       alt={`${project.title} preview ${i + 1}`}
                       loading="lazy"
                       decoding="async"

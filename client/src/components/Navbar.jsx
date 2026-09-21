@@ -2,9 +2,13 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Menu, X } from 'lucide-react';
+import { useModalRegistration } from '../context/ModalContext';
 
 export default function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Register mobile menu drawer with modal registry for hardware back button closing
+  useModalRegistration(mobileMenuOpen, () => setMobileMenuOpen(false), 'navbar-mobile-drawer');
 
   const navLinks = [
     { name: 'WORK', href: '/#work' },
@@ -14,8 +18,8 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="fixed top-0 left-0 right-0 z-50 bg-[#F0EBE1] border-b border-[#1A1512]/15">
-        <div className="max-w-7xl mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
+      <header className="fixed top-0 left-0 right-0 z-40 bg-[#F0EBE1] border-b border-[#1A1512]/15 pt-[env(safe-area-inset-top,0px)]">
+        <div className="max-w-7xl mx-auto px-6 md:px-12 py-3.5 sm:py-4 flex items-center justify-between">
           
           {/* Brand Wordmark */}
           <Link to="/" className="flex items-center gap-1 group">
@@ -68,7 +72,7 @@ export default function Navbar() {
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="fixed inset-0 z-40 bg-[#F0EBE1] pt-24 px-6 pb-12 flex flex-col justify-between md:hidden border-b border-[#1A1512]/15"
+            className="fixed inset-0 z-50 bg-[#F0EBE1] pt-[calc(5.5rem+env(safe-area-inset-top,0px))] px-6 pb-[max(2.5rem,env(safe-area-inset-bottom,0px))] flex flex-col justify-between md:hidden border-b border-[#1A1512]/15"
           >
             <div className="space-y-6">
               {navLinks.map((link) => (

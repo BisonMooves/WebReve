@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">WebRêve</string>
+    <string name="title_activity_main">WebRêve</string>
+    <string name="package_name">com.webreve.app</string>
+    <string name="custom_url_scheme">com.webreve.app</string>
+</resources>
